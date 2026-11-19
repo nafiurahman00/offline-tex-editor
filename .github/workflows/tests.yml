@@ -1,0 +1,88 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Python 3.9 is built only up to Ubuntu 24.04; the two jobs also cover TeX Live 2023 and the latest one.
+          # The 24.04 runner's package mirror has repeatedly stalled on the large TeX packages, so that job installs
+          # only base and recommended LaTeX (the tests that need XeLaTeX, biber or texcount skip there).
+          - python-version: '3.9'
+            os: ubuntu-24.04
+            tex: latexmk texlive-latex-base texlive-latex-recommended
+          - python-version: '3.13'
+            os: ubuntu-latest
+            tex: >-
+              latexmk texlive-latex-base texlive-latex-recommended texlive-fonts-recommended texlive-xetex
+              fonts-lmodern texlive-bibtex-extra biber texlive-extra-utils
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Restore downloaded TeX packages
+        uses: actions/cache@v4
+        with:
+          path: ~/apt-archives
+          key: apt-${{ matrix.os }}-${{ hashFiles('.github/workflows/tests.yml') }}
+          restore-keys: apt-${{ matrix.os }}-
+      - name: Install TeX
+        # Packages come from the cache when it has them, so most runs download nothing: the runners' package mirrors
+        # sometimes stall on the large TeX packages. texlive-fonts-recommended: hyperref under XeTeX loads the
+        # ZapfDingbats font (pzdr).
+        # The download runs on its own, in two attempts of at most five minutes; the second resumes the first
+        # (stopping a download is safe, and installing afterwards needs no network). The runners' package mirrors are
+        # sometimes far too slow to finish; then the job stops with a clear message instead of hanging, and a later
+        # run fills the cache.
+        run: |
+          mkdir -p ~/apt-archives/partial
+          apt_opts="-o Dir::Cache::Archives=$HOME/apt-archives -o Acquire::Retries=5 -o Acquire::http::Timeout=60"
+          sudo timeout 180 apt-get update -q -o Acquire::Retries=5 -o Acquire::http::Timeout=60
+          downloaded=no
+          for attempt in 1 2; do
+            if sudo timeout 300 apt-get install -y -q --download-only --no-install-recommends $apt_opts ${{ matrix.tex }}; then
+              downloaded=yes; break
+            fi
+            echo "download attempt $attempt did not finish"
+          done
+          if [ "$downloaded" != yes ]; then
+            echo "::error::The Ubuntu package mirror is too slow to download TeX right now. Re-run this job later; once one run finishes, the packages are cached."
+            exit 1
+          fi
+          sudo apt-get install -y -q --no-install-recommends $apt_opts ${{ matrix.tex }}
+          sudo apt-get autoclean -q $apt_opts
+          sudo chown -R "$USER" ~/apt-archives
+      - name: Check vendored files against offline_tex_editor/vendor/README.md
+        working-directory: offline_tex_editor/vendor
+        run: sed -n '/^```$/,/^```$/p' README.md | grep -v '^```' | sha256sum --check --strict
+      - name: Python tests
+        run: python -m unittest discover -s tests -v
+      - name: JavaScript tests
+        run: node --test tests/*.test.mjs
+      - name: The package installs and runs
+        run: |
+          python -m pip install .
+          offline-tex-editor --version
+
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Python tests (TeX tests are skipped without a TeX distribution)
+        run: python -m unittest discover -s tests -v

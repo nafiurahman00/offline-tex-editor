@@ -1,0 +1,10 @@
+# Check text files out with LF on every system (git for Windows would otherwise convert them to CRLF).
+* text=auto eol=lf
+# cmd.exe expects CRLF in batch files.
+*.cmd text eol=crlf
+# Vendored libraries are kept byte for byte (their SHA-256 sums are checked).
+offline_tex_editor/vendor/** -text
+# Binary files
+*.jpg binary
+*.png binary
+*.pdf binary

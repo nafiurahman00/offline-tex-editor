@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>$title</title>
+<meta name="description" content="A LaTeX editor that runs on your own machine and opens in your browser. Install it with pip install $pypi.">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/style.css?v=$css_v">
+</head>
+<body>
+<a class="skip" href="#main">Skip to the content</a>
+<div class="desk">
+  <nav class="toc" aria-label="On this page">
+    <p class="toc-name">$title <span>$version</span></p>
+    <ul>
+$toc
+    </ul>
+  </nav>
+
+  <main id="main" class="paper">
+    <header class="masthead">
+      <h1>$title</h1>
+$lead
+      <div class="install">
+        <code id="pip">pip install $pypi</code>
+        <button type="button" class="copy" data-copy="pip">Copy</button>
+      </div>
+      <p class="install-note">Published on PyPI: <a href="https://pypi.org/project/$pypi/">pypi.org/project/$pypi</a></p>
+    </header>
+
+$figure
+
+$content
+
+    <section id="contact">
+      <h2>Contact</h2>
+      <p>For ideas, bug reports and questions, use the <a href="#suggest">suggestion box</a> below, or look through the
+        <a href="https://github.com/$public_repo/issues">issue tracker</a> to see whether someone has asked already.</p>
+      <p>To report a security problem, use <a href="https://github.com/$public_repo/security/advisories/new">private
+        vulnerability reporting</a> instead, so it stays private until it is fixed.</p>
+$email_contact
+      <p>Offline TeX Editor is made by <a href="https://github.com/$maintainer">$maintainer</a>.</p>
+    </section>
+
+    <section id="suggest">
+      <h2>Suggestion box</h2>
+      <p>Ideas, bug reports and questions are all welcome. Sending opens a pre-filled issue on GitHub, where you can
+        check it before you post it. You need a GitHub account.</p>
+      <form class="suggest" action="https://github.com/$public_repo/issues/new" method="get" target="_blank" rel="noopener">
+        <fieldset>
+          <legend>What would you like to send?</legend>
+          <label class="choice"><input type="radio" name="template" value="suggestion.yml" checked> An idea or a feature request</label>
+          <label class="choice"><input type="radio" name="template" value="bug_report.yml"> Something doesn't work</label>
+          <label class="choice"><input type="radio" name="template" value="question.yml"> A question</label>
+        </fieldset>
+        <label for="s-title">Title</label>
+        <input id="s-title" name="title" required maxlength="120" placeholder="A short summary">
+        <label for="s-details">Details</label>
+        <textarea id="s-details" name="details" rows="6" required
+                  placeholder="What you would like and why, or what happened and what you expected"></textarea>
+        <div class="bug-only">
+          <label for="s-system">Your system</label>
+          <input id="s-system" name="system" placeholder="For example: Ubuntu 24.04, TeX Live 2024, Firefox 130">
+        </div>
+        <input type="hidden" name="version" value="$version">
+        <button type="submit" class="primary">Continue on GitHub</button>
+      </form>
+    </section>
+
+    <footer>
+      <p>Offline TeX Editor $version (<a href="https://pypi.org/project/$pypi/">on PyPI</a>), released under the MIT
+        License. It includes CodeMirror (MIT) and pdf.js (Apache-2.0).</p>
+      <p>TeX is a trademark of the American Mathematical Society.</p>
+      <p>This page uses no cookies and loads nothing from other sites.</p>
+    </footer>
+  </main>
+</div>
+<script src="assets/site.js?v=$js_v" defer></script>
+</body>
+</html>

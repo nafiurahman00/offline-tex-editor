@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Offline TeX Editor</title>
+<link rel="stylesheet" href="vendor/codemirror/codemirror.min.css">
+<link rel="stylesheet" href="vendor/codemirror/addon/dialog/dialog.min.css">
+<link rel="stylesheet" href="static/app.css">
+</head>
+<body>
+<header>
+  <span class="title">Offline TeX Editor</span>
+  <span id="mainDoc" class="muted" title="Main document (change it in ⚙)"></span>
+  <span class="spacer"></span>
+  <span id="status">loading…</span>
+  <label class="chk" title="Recompile after every save"><input type="checkbox" id="auto" checked> Auto-compile</label>
+  <button id="saveBtn" title="Ctrl/Cmd+S">Save</button>
+  <button id="syncBtn" title="Show the cursor position in the PDF (Ctrl/Cmd+J)">Sync → PDF</button>
+  <span id="pageNav" title="Current page (type a number and press Enter to jump)"><input id="pageNum" type="text" inputmode="numeric" value="–" aria-label="Page"> / <span id="pageCount">–</span></span>
+  <button id="zoomOut" title="Zoom out">−</button><button id="zoomIn" title="Zoom in">+</button>
+  <button id="findBtn" title="Find in the PDF (Ctrl/Cmd+F when the editor is not focused)">Find</button>
+  <button id="changesBtn" title="Source changes in the latest compile that changed something">Changes</button>
+  <button id="toolsBtn" title="Settings and tools" aria-haspopup="dialog" aria-expanded="false">⚙</button>
+  <button id="themeBtn" title="Toggle light/dark">◐</button>
+  <button class="danger" id="stopBtn" title="Stop the running compile" hidden>Stop</button>
+  <button class="primary" id="compileBtn" title="Ctrl/Cmd+Enter">Recompile</button>
+</header>
+
+<div id="tools" class="popover" role="dialog" aria-label="Settings and tools" hidden>
+  <label class="field">Main document <select id="mainSelect"></select></label>
+  <div class="note" id="engineNote"></div>
+  <label class="field">Compile only <select id="onlySelect"></select></label>
+  <label class="chk" title="Images are drawn as empty boxes, which makes compiling much faster"><input type="checkbox" id="draftChk"> Fast draft compile (images as boxes)</label>
+  <label class="chk"><input type="checkbox" id="spellChk"> Spell check (your browser's dictionary)</label>
+  <div class="note" id="shellNote"></div>
+  <hr>
+  <div class="row"><button id="wcBtn">Count words</button><span class="muted" id="wcNote"></span></div>
+  <div id="wcOut"></div>
+  <hr>
+  <div class="keys">
+    <kbd>Ctrl/Cmd+S</kbd><span>Save</span>
+    <kbd>Ctrl/Cmd+Enter</kbd><span>Recompile</span>
+    <kbd>Ctrl/Cmd+J</kbd><span>Show the cursor position in the PDF</span>
+    <kbd>Double-click PDF</kbd><span>Jump to the source</span>
+    <kbd>Ctrl+Space</kbd><span>Complete commands, \ref and \cite keys</span>
+    <kbd>Ctrl/Cmd+/</kbd><span>Comment or uncomment lines</span>
+    <kbd>Ctrl/Cmd+F</kbd><span>Find in this file (in the PDF when the editor is not focused)</span>
+    <kbd>Ctrl+H, Cmd+Option+F</kbd><span>Find and replace in this file</span>
+    <kbd>Enter, Shift+Enter</kbd><span>Next and previous match (also F3, Ctrl/Cmd+G)</span>
+    <kbd>Ctrl/Cmd+Shift+F</kbd><span>Search and replace in all files</span>
+  </div>
+</div>
+
+<main>
+  <aside id="side">
+    <div id="sideTabs" role="tablist">
+      <button data-tab="files" class="on">Files</button><button data-tab="outline">Outline</button><button data-tab="search">Search</button><button data-tab="git">Git <span id="gitBadge"></span></button>
+    </div>
+    <div id="filesPane" class="pane">
+      <input id="filter" placeholder="Filter files…" autocomplete="off" aria-label="Filter files">
+      <div class="row">
+        <button id="newFileBtn" title="New file">+ File</button><button id="newFolderBtn" title="New folder">+ Folder</button><button id="uploadBtn" title="Add files (or drop them on the list)">Upload</button>
+        <input type="file" id="uploadInput" multiple hidden>
+      </div>
+      <div id="fsForm" hidden><input id="fsInput" autocomplete="off" spellcheck="false"><div id="fsHint"></div></div>
+      <div class="scroll" id="files"></div>
+    </div>
+    <div id="outlinePane" class="pane" hidden><div class="scroll" id="outline"></div></div>
+    <div id="searchPane" class="pane" hidden>
+      <input id="searchInput" placeholder="Search all files" autocomplete="off" spellcheck="false" aria-label="Search all files">
+      <div class="row toggles">
+        <label title="Match case"><input type="checkbox" id="sCase"> Aa</label>
+        <label title="Whole words"><input type="checkbox" id="sWord"> Word</label>
+        <label title="Regular expression; $1 in the replacement inserts a group"><input type="checkbox" id="sRegex"> .*</label>
+      </div>
+      <input id="replaceInput" placeholder="Replace with" autocomplete="off" spellcheck="false" aria-label="Replace with">
+      <div class="row"><button id="replaceAllBtn" disabled>Replace all</button><span id="searchCount"></span></div>
+      <div class="scroll" id="searchResults"></div>
+    </div>
+    <div id="gitPane" class="pane" hidden>
+      <div id="gitHead"><span id="gitBranch">…</span><span id="gitSync"></span></div>
+      <div id="gitInit" class="gitBox" hidden>
+        <p class="note">This project is not a git repository yet. Start one to keep a history of your changes and sync it with GitHub.</p>
+        <button class="primary" id="gitInitBtn">Start a git repository</button>
+      </div>
+      <div id="gitConnect" class="gitBox" hidden>
+        <p class="note">Not connected to GitHub yet. Create an empty repository on GitHub, then paste its address here:</p>
+        <div class="row"><input id="gitRemoteUrl" placeholder="https://github.com/you/project.git" autocomplete="off" spellcheck="false" aria-label="Repository address"><button id="gitConnectBtn">Connect</button></div>
+      </div>
+      <div id="gitState" hidden></div>
+      <div class="gitBtns" id="gitRemoteBtns"><button id="gitRefresh" title="Fetch and refresh">⟳</button><button id="gitPull" title="Pull">Pull</button><button id="gitPush" title="Push to the remote">Push</button><button id="gitSyncBtn" title="Pull, then push: bring this branch and GitHub in step">Sync</button></div>
+      <div id="gitCommitBox">
+        <textarea id="gitMsg" rows="3" placeholder="Commit message (Ctrl/Cmd+Enter to commit)"></textarea>
+        <div class="gitBtns"><button class="primary" id="gitCommit">Commit staged</button><button id="gitStageAll" title="Stage every change">Stage all</button></div>
+      </div>
+      <div id="gitMsgOut"></div>
+      <div class="scroll" id="gitScroll"><div id="gitLists"></div><div class="gsec">History</div><div id="gitLog"></div></div>
+    </div>
+  </aside>
+  <section id="editorWrap">
+    <div id="tabs" role="tablist" aria-label="Open files"></div>
+    <div id="findBar" role="search" aria-label="Find and replace in this file" hidden>
+      <div class="fb-row">
+        <button id="fbToggle" class="link" title="Show replace (Ctrl+H, Cmd+Option+F on a Mac)" aria-expanded="false">▸</button>
+        <input id="fbFind" placeholder="Find in this file" aria-label="Find" autocomplete="off" spellcheck="false">
+        <label class="fb-opt" title="Match case"><input type="checkbox" id="fbCase"> Aa</label>
+        <label class="fb-opt" title="Whole words"><input type="checkbox" id="fbWord"> Word</label>
+        <label class="fb-opt" title="Regular expression; $1 in the replacement inserts a group"><input type="checkbox" id="fbRegex"> .*</label>
+        <span id="fbCount" aria-live="polite"></span>
+        <button id="fbPrev" title="Previous match (Shift+Enter)">↑</button><button id="fbNext" title="Next match (Enter)">↓</button>
+        <button id="fbAll" title="Search all files for this">All files</button>
+        <button id="fbClose" class="link" title="Close (Esc)">×</button>
+      </div>
+      <div class="fb-row" id="fbReplaceRow" hidden>
+        <span class="fb-indent"></span>
+        <input id="fbReplace" placeholder="Replace with" aria-label="Replace with" autocomplete="off" spellcheck="false">
+        <button id="fbReplaceOne" title="Replace this match and go to the next (Enter)">Replace</button>
+        <button id="fbReplaceAll" title="Replace every match in this file (Ctrl/Cmd+Enter)">Replace all</button>
+      </div>
+    </div>
+    <div id="banner"><span id="bannerText"></span><span class="spacer"></span>
+      <button id="bannerA"></button><button id="bannerB"></button><button id="bannerC" hidden></button></div>
+    <textarea id="ed"></textarea>
+    <div id="diffView" hidden>
+      <div id="diffHead"><b id="diffTitle"></b><span class="spacer"></span>
+        <button id="diffOpen">Open file</button><button id="diffClose" title="Esc">Close</button></div>
+      <pre id="diffBody"></pre>
+    </div>
+    <div id="preview" hidden>
+      <div id="previewHead"><b id="previewTitle"></b><span class="spacer"></span><button id="previewClose" title="Esc">Close</button></div>
+      <div id="previewBody"></div>
+    </div>
+  </section>
+  <div id="split"></div>
+  <section id="pdfPane">
+    <div id="pdfFind" hidden role="search">
+      <input id="findInput" type="text" placeholder="Find in PDF" autocomplete="off" spellcheck="false" aria-label="Find in PDF">
+      <span id="findCount" aria-live="polite"></span>
+      <button id="findPrev" title="Previous match (Shift+Enter)">↑</button><button id="findNext" title="Next match (Enter)">↓</button><button id="findClose" title="Close (Esc)">×</button>
+    </div>
+    <div id="pdfWrap" title="Double-click to jump to the source"><div id="pdf"><div id="pdfEmpty">No PDF yet.</div></div></div>
+  </section>
+</main>
+<footer>
+  <div class="bar" id="logBar"><span>Logs</span><b class="e" id="nErr">0 errors</b><b class="w" id="nWarn">0 warnings</b>
+    <span id="logHint" class="muted">click to expand</span></div>
+  <div id="log"></div>
+</footer>
+
+<script src="vendor/codemirror/codemirror.min.js"></script>
+<script src="vendor/codemirror/mode/stex/stex.min.js"></script>
+<script src="vendor/codemirror/mode/python/python.min.js"></script>
+<script src="vendor/codemirror/mode/markdown/markdown.min.js"></script>
+<script src="vendor/codemirror/addon/dialog/dialog.min.js"></script>
+<script src="vendor/codemirror/addon/search/searchcursor.min.js"></script>
+<script src="vendor/codemirror/addon/search/jump-to-line.min.js"></script>
+<script src="vendor/codemirror/addon/edit/matchbrackets.min.js"></script>
+<script src="vendor/codemirror/addon/selection/active-line.min.js"></script>
+<script type="module" src="static/app.js"></script>
+</body>
+</html>

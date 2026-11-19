@@ -1,0 +1,29 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath}
+\usepackage{hyperref}
+
+\title{Offline TeX Editor: Example Project}
+\author{Your Name}
+
+\begin{document}
+\maketitle
+
+% Double-click anywhere in the PDF to jump to the matching source line,
+% or put the cursor on a line and press Ctrl/Cmd+J to find it in the PDF.
+
+\input{sections/introduction}
+
+\section{Some mathematics}
+\label{sec:math}
+The Gaussian integral, which Section~\ref{sec:intro} promised, is
+\begin{equation}
+  \int_{-\infty}^{\infty} e^{-x^2}\,dx = \sqrt{\pi}.
+  \label{eq:gauss}
+\end{equation}
+Edit Equation~\eqref{eq:gauss}, save with Ctrl/Cmd+S, and the PDF recompiles.
+
+\bibliographystyle{plain}
+\bibliography{refs}
+
+\end{document}
