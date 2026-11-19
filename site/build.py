@@ -4,9 +4,10 @@
     python3 site/build.py                  # writes site/_build/
     python3 site/build.py --out ../offline-tex-editor.github.io
 
-The output is everything the public repository needs: index.html with the README, a contact section and a
-suggestion box, its assets, the public repository's README and SECURITY.md, and GitHub issue forms that the
-suggestion box fills in. Settings (site address, public repository, contact email) are in site/config.json.
+The output is everything the website's repository needs: index.html with the README, a contact section and a
+suggestion box, its assets, and that repository's README, SECURITY.md and issue settings (which send people to the
+source repository). The suggestion box opens a pre-filled issue in the source repository, using the issue forms in
+.github/ISSUE_TEMPLATE/. Settings (site address, repositories, contact email) are in site/config.json.
 """
 import argparse
 import hashlib
@@ -207,7 +208,7 @@ def build(out, config):
         shutil.rmtree(out / 'assets')
     shutil.copytree(HERE / 'assets', out / 'assets')
     (out / '.nojekyll').write_text('', encoding='utf-8')   # serve the files as they are
-    # The public repository's own files, with the addresses from config.json filled in.
+    # The website repository's own files (site/public/), with the addresses from config.json filled in.
     values = dict(config, version=version())
     for src in (HERE / 'public').rglob('*'):
         if src.is_file():

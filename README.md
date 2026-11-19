@@ -9,7 +9,10 @@ Fully offline: no accounts, no cloud, no internet connection needed. It runs as 
 
 ## Install
 
-You need Python 3.9 or newer and a TeX distribution (see [Requirements](#requirements)). Then:
+You need Python 3.9 or newer and a TeX distribution (see [Requirements](#requirements)). Install the editor with
+pip, or run it straight from its source code.
+
+### With pip
 
 ```bash
 pip install offline-tex-editor
@@ -23,6 +26,20 @@ pipx install offline-tex-editor
 
 To update later, run `pip install --upgrade offline-tex-editor` (or `pipx upgrade offline-tex-editor`).
 
+### From the source code
+
+Clone the repository and start the editor from the clone. Nothing else needs to be installed:
+
+```bash
+git clone https://github.com/offline-tex-editor/offline-tex-editor.git
+cd offline-tex-editor
+./start.sh --root path/to/your/project --open
+```
+
+On Windows, run `.\start.cmd` instead of `./start.sh`. Both take the same [options](#options) as the
+`offline-tex-editor` command. To update later, run `git pull` in the clone. To get the `offline-tex-editor`
+command from the clone instead, run `pip install .` in it.
+
 ## Run
 
 Start it on your LaTeX project's folder:
@@ -30,6 +47,8 @@ Start it on your LaTeX project's folder:
 ```bash
 offline-tex-editor --root path/to/your/project --open
 ```
+
+(From a clone of the source code, run `./start.sh`, or `.\start.cmd` on Windows, with the same options.)
 
 `--open` opens the editor in your browser. Without it, open the address it prints, usually
 http://127.0.0.1:8765/. Stop the editor with Ctrl+C in the terminal.
@@ -175,11 +194,19 @@ To report a security problem privately, see
 
 Ideas, bug reports and questions are welcome: use the
 [suggestion box](https://offline-tex-editor.github.io/#suggest) on the website or the
-[issue tracker](https://github.com/offline-tex-editor/offline-tex-editor.github.io/issues).
+[issue tracker](https://github.com/offline-tex-editor/offline-tex-editor/issues).
+
+## Contributing
+
+The source code is on [GitHub](https://github.com/offline-tex-editor/offline-tex-editor). Bug fixes and
+improvements are welcome as pull requests; for a larger change, please open an issue first so that we can agree on
+the approach. [CONTRIBUTING.md](https://github.com/offline-tex-editor/offline-tex-editor/blob/main/CONTRIBUTING.md)
+explains how to run the editor from a clone, run the tests, and the few rules the code follows.
 
 ## License
 
-MIT License; the full text comes with the package. Offline TeX Editor includes CodeMirror 5 (MIT) and pdf.js
+MIT License; see [LICENSE](https://github.com/offline-tex-editor/offline-tex-editor/blob/main/LICENSE) (the
+full text also comes with the package). Offline TeX Editor includes CodeMirror 5 (MIT) and pdf.js
 (Apache-2.0), which keep their own licenses.
 
 TeX is a trademark of the American Mathematical Society.

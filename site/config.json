@@ -1,7 +1,8 @@
 {
   "name": "Offline TeX Editor",
   "pypi": "offline-tex-editor",
-  "public_repo": "offline-tex-editor/offline-tex-editor.github.io",
+  "repo": "offline-tex-editor/offline-tex-editor",
+  "site_repo": "offline-tex-editor/offline-tex-editor.github.io",
   "site_url": "https://offline-tex-editor.github.io/",
   "maintainer": "KSMubasshir",
   "email": "",

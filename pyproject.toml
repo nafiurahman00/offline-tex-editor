@@ -24,7 +24,8 @@ classifiers = [
 
 [project.urls]
 Homepage = "https://offline-tex-editor.github.io/"
-Issues = "https://github.com/offline-tex-editor/offline-tex-editor.github.io/issues"
+Source = "https://github.com/offline-tex-editor/offline-tex-editor"
+Issues = "https://github.com/offline-tex-editor/offline-tex-editor/issues"
 
 [project.scripts]
 offline-tex-editor = "offline_tex_editor.server:main"

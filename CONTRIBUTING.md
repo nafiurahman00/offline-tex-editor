@@ -1,7 +1,20 @@
-# Development
+# Contributing
 
-Notes for working on Offline TeX Editor. This repository is private; users get the editor from PyPI
-(`pip install offline-tex-editor`) and read [README.md](README.md), which is also the PyPI page and the website.
+Thank you for helping with Offline TeX Editor. Ideas, bug reports and questions go in the
+[issue tracker](https://github.com/offline-tex-editor/offline-tex-editor/issues); security problems are reported
+privately, as [SECURITY.md](SECURITY.md) explains. This file is about changing the code.
+
+[README.md](README.md) is the user documentation; it is also the PyPI page and the website, so keep it written for
+people who use the editor.
+
+## Pull requests
+
+- For anything larger than a small fix, open an issue first, so that we can agree on the approach before you
+  spend time on it.
+- Follow the design constraints below.
+- Add or update tests, and run them before you push. CI runs them on Linux (Python 3.9 and 3.13) and Windows.
+- Keep each pull request to one change, and describe what it changes for the people who use the editor.
+- Contributions are released under the project's [MIT License](LICENSE).
 
 ## Design constraints
 
@@ -20,7 +33,7 @@ These keep the editor easy to install and audit:
 ## Running and testing
 
 ```bash
-./start.sh --root example        # run the editor from this checkout (Windows: start.cmd)
+./start.sh --root example        # run the editor from this checkout (Windows: .\start.cmd)
 python3 -m unittest discover -s tests -v
 node --test tests/*.test.mjs
 ```
@@ -41,15 +54,14 @@ Layout:
 - `example/`: a small project to try the editor on; also used by the tests
 - `site/`: the public website (see below)
 
-## Releasing to PyPI
+## Releasing to PyPI (maintainers)
 
-Only the wheel is published: it contains the `offline_tex_editor` package and its license files, not the tests,
-the example, CI or the git history. (The package's Python and JavaScript files are readable by anyone who installs
-it, as with any pure-Python package.)
+Only the wheel is published: it contains the `offline_tex_editor` package and its license files. The rest (tests,
+the example, CI, the website) is here on GitHub.
 
-One-time setup on PyPI: create the `offline-tex-editor` project with a trusted publisher (pypi.org → Your account →
-Publishing → Add a new pending publisher → GitHub): project name `offline-tex-editor`, owner `KSMubasshir`,
-repository `offline-tex-editor`, workflow `release.yml`, environment name left empty.
+PyPI accepts uploads from this repository's `release` workflow through trusted publishing, so no token is stored
+anywhere. The publisher is set on pypi.org (the `offline-tex-editor` project → Manage → Publishing → GitHub):
+owner `offline-tex-editor`, repository `offline-tex-editor`, workflow `release.yml`, environment name left empty.
 
 For each release:
 
@@ -61,18 +73,19 @@ For each release:
 To build the wheel by hand instead: `python3 -m pip wheel --no-deps -w dist .`, then upload `dist/*.whl` with
 `twine upload`.
 
-## The website
+## The website (maintainers)
 
 The website is generated from README.md by `site/build.py` (standard library only) and adds a contact section and
-a suggestion box. The suggestion box is a plain form that opens a pre-filled issue on the public repository, using
-the issue forms in `site/public/.github/ISSUE_TEMPLATE/`.
+a suggestion box. The suggestion box is a plain form that opens a pre-filled issue in this repository, using the
+issue forms in `.github/ISSUE_TEMPLATE/`.
 
-Its settings are in `site/config.json`: the public repository, the site address, the maintainer, and an optional
-contact email (shown on the page when set). If you change the site address or the public repository, also update
-the links in README.md and `pyproject.toml`; `tests/test_site.py` checks that they agree.
+Its settings are in `site/config.json`: this repository, the website's repository, the site address, the
+maintainer, and an optional contact email (shown on the page when set). If you change the site address or this
+repository's name, also update the links in README.md and `pyproject.toml`; `tests/test_site.py` checks that they
+agree.
 
-To publish (the public repository, offline-tex-editor/offline-tex-editor.github.io in the offline-tex-editor
-organization, holds only the generated files):
+To publish (the website's repository, offline-tex-editor/offline-tex-editor.github.io, holds only the generated
+files):
 
 ```bash
 git clone https://github.com/offline-tex-editor/offline-tex-editor.github.io.git ../offline-tex-editor.github.io
@@ -80,7 +93,6 @@ python3 site/build.py --out ../offline-tex-editor.github.io
 cd ../offline-tex-editor.github.io && git add -A && git commit -m "Update the website" && git push
 ```
 
-That repository serves GitHub Pages from its `main` branch at https://offline-tex-editor.github.io/, with private
-vulnerability reporting on. It lives in an organization on purpose: project sites in a personal account are served
-under that account's custom domain, if it has one. To preview locally: `python3 site/build.py` and open
+That repository serves GitHub Pages from its `main` branch at https://offline-tex-editor.github.io/. Its issues and
+security reports are redirected here. To preview locally: `python3 site/build.py` and open
 `site/_build/index.html`, or serve it with `python3 -m http.server --directory site/_build`.

@@ -53,7 +53,10 @@ class Site(unittest.TestCase):
             self.assertIn('TeX is a trademark of the American Mathematical Society.', page)
             self.assertIn(f'href="https://pypi.org/project/{CONFIG["pypi"]}/"', page)
             self.assertIn(f'https://pypi.org/project/{CONFIG["pypi"]}/', (out / 'README.md').read_text(encoding='utf-8'))
-            self.assertIn(f'action="https://github.com/{CONFIG["public_repo"]}/issues/new"', page)
+            self.assertIn(f'action="https://github.com/{CONFIG["repo"]}/issues/new"', page)
+            self.assertIn(f'href="https://github.com/{CONFIG["repo"]}"', page)   # the source code
+            self.assertIn('id="from-the-source-code"', page)   # the masthead links to it
+            self.assertIn('git clone', page)
             self.assertIn('src="assets/editor.jpg"', page)   # the README's absolute image link, made local
             # every generated file has its placeholders filled in (the README itself may contain "$", e.g. $pdf_mode)
             names = set(re.findall(r'\$([a-z_]+)', (REPO / 'site' / 'template.html').read_text(encoding='utf-8')))
@@ -64,8 +67,11 @@ class Site(unittest.TestCase):
             for f in out.rglob('*'):
                 if f.suffix in ('.html', '.md', '.yml'):
                     self.assertIsNone(leftover.search(f.read_text(encoding='utf-8')), f)
-            # the suggestion box fills in fields the issue forms have
-            forms = {f.name: f.read_text(encoding='utf-8') for f in (out / '.github' / 'ISSUE_TEMPLATE').glob('*.yml')}
+            # the website repository sends issues to the source repository
+            self.assertIn(f'https://github.com/{CONFIG["repo"]}/issues/new/choose',
+                          (out / '.github' / 'ISSUE_TEMPLATE' / 'config.yml').read_text(encoding='utf-8'))
+            # the suggestion box fills in fields that the source repository's issue forms have
+            forms = {f.name: f.read_text(encoding='utf-8') for f in (REPO / '.github' / 'ISSUE_TEMPLATE').glob('*.yml')}
             for template in re.findall(r'name="template" value="([^"]+)"', page):
                 self.assertIn(template, forms)
                 self.assertIn('id: details', forms[template])
@@ -81,7 +87,11 @@ class Site(unittest.TestCase):
         self.assertIn(f'name = "{CONFIG["pypi"]}"', pyproject)
         for text in (readme, pyproject):
             self.assertIn(CONFIG['site_url'], text)
-            self.assertIn(f'github.com/{CONFIG["public_repo"]}', text)
+            self.assertIn(f'github.com/{CONFIG["repo"]}/issues', text)
+        self.assertIn(f'git clone https://github.com/{CONFIG["repo"]}.git', readme)
+        self.assertNotIn(CONFIG['site_repo'] + '/issues', readme + pyproject)   # issues live with the code
+        for name in ('SECURITY.md', '.github/ISSUE_TEMPLATE/config.yml'):
+            self.assertIn(f'github.com/{CONFIG["repo"]}/security/advisories/new', (REPO / name).read_text(encoding='utf-8'))
 
 
 if __name__ == '__main__':

@@ -1,7 +1,7 @@
 name: release
 
 # Publishes the wheel to PyPI when a version tag (v0.2.0, …) is pushed. Uses PyPI trusted publishing, so no token
-# is stored here; see DEVELOPMENT.md for the one-time setup on pypi.org.
+# is stored here; CONTRIBUTING.md lists the publisher settings on pypi.org.
 on:
   push:
     tags: ['v*']
@@ -12,10 +12,9 @@ permissions:
 jobs:
   pypi:
     runs-on: ubuntu-latest
-    # No GitHub environment: private repositories on the free plan cannot use them. Leave "Environment name"
-    # empty when adding the trusted publisher on PyPI.
-    # A job's permissions replace the workflow's, so list both: reading this (private) repository, and the
-    # OpenID Connect token PyPI's trusted publishing needs.
+    # No GitHub environment, so "Environment name" stays empty in the trusted publisher on PyPI.
+    # A job's permissions replace the workflow's, so list both: reading this repository, and the OpenID Connect
+    # token PyPI's trusted publishing needs.
     permissions:
       contents: read
       id-token: write
@@ -28,9 +27,7 @@ jobs:
         run: |
           version=$(python -c 'import offline_tex_editor as m; print(m.__version__)')
           test "v$version" = "$GITHUB_REF_NAME" || { echo "tag $GITHUB_REF_NAME, package $version"; exit 1; }
-      - name: Build the wheel (the source distribution is not published)
+      - name: Build the wheel
         run: python -m pip wheel --no-deps -w dist .
+      # Also uploads attestations, which let anyone check on PyPI that the wheel was built here.
       - uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          # Attestations would record details of this (private) repository on PyPI.
-          attestations: false

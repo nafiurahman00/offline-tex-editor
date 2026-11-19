@@ -26,7 +26,9 @@ $lead
         <code id="pip">pip install $pypi</code>
         <button type="button" class="copy" data-copy="pip">Copy</button>
       </div>
-      <p class="install-note">Published on PyPI: <a href="https://pypi.org/project/$pypi/">pypi.org/project/$pypi</a></p>
+      <p class="install-note">Published on PyPI: <a href="https://pypi.org/project/$pypi/">pypi.org/project/$pypi</a>.
+        Source code on GitHub: <a href="https://github.com/$repo">github.com/$repo</a>
+        (<a href="#from-the-source-code">run it from a clone</a>).</p>
     </header>
 
 $figure
@@ -36,18 +38,19 @@ $content
     <section id="contact">
       <h2>Contact</h2>
       <p>For ideas, bug reports and questions, use the <a href="#suggest">suggestion box</a> below, or look through the
-        <a href="https://github.com/$public_repo/issues">issue tracker</a> to see whether someone has asked already.</p>
-      <p>To report a security problem, use <a href="https://github.com/$public_repo/security/advisories/new">private
+        <a href="https://github.com/$repo/issues">issue tracker</a> to see whether someone has asked already.</p>
+      <p>To report a security problem, use <a href="https://github.com/$repo/security/advisories/new">private
         vulnerability reporting</a> instead, so it stays private until it is fixed.</p>
 $email_contact
-      <p>Offline TeX Editor is made by <a href="https://github.com/$maintainer">$maintainer</a>.</p>
+      <p>Offline TeX Editor is made by <a href="https://github.com/$maintainer">$maintainer</a>. Its source code is
+        <a href="https://github.com/$repo">on GitHub</a>, and pull requests are welcome.</p>
     </section>
 
     <section id="suggest">
       <h2>Suggestion box</h2>
       <p>Ideas, bug reports and questions are all welcome. Sending opens a pre-filled issue on GitHub, where you can
         check it before you post it. You need a GitHub account.</p>
-      <form class="suggest" action="https://github.com/$public_repo/issues/new" method="get" target="_blank" rel="noopener">
+      <form class="suggest" action="https://github.com/$repo/issues/new" method="get" target="_blank" rel="noopener">
         <fieldset>
           <legend>What would you like to send?</legend>
           <label class="choice"><input type="radio" name="template" value="suggestion.yml" checked> An idea or a feature request</label>
@@ -69,8 +72,9 @@ $email_contact
     </section>
 
     <footer>
-      <p>Offline TeX Editor $version (<a href="https://pypi.org/project/$pypi/">on PyPI</a>), released under the MIT
-        License. It includes CodeMirror (MIT) and pdf.js (Apache-2.0).</p>
+      <p>Offline TeX Editor $version (<a href="https://pypi.org/project/$pypi/">on PyPI</a>,
+        <a href="https://github.com/$repo">source code on GitHub</a>), released under the MIT License. It includes
+        CodeMirror (MIT) and pdf.js (Apache-2.0).</p>
       <p>TeX is a trademark of the American Mathematical Society.</p>
       <p>This page uses no cookies and loads nothing from other sites.</p>
     </footer>
