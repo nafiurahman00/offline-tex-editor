@@ -309,7 +309,7 @@ class Commands(unittest.TestCase):
             write(d, {'main.tex': '\\documentclass{article}'})
             server.configure(d, 'main.tex')
             self.assertEqual(server.latexmk_cmd('pdflatex'), [
-                'latexmk', '-pdf', '-f', '-interaction=nonstopmode', '-file-line-error', '-synctex=1',
+                'latexmk', '-pdf', '-cd', '-f', '-interaction=nonstopmode', '-file-line-error', '-synctex=1',
                 '-outdir=build', '-jobname=main', 'main.tex'])
             server.settings.update(draft=True, only='chapters/one')
             cmd = server.latexmk_cmd(None, force=True)
@@ -317,6 +317,12 @@ class Commands(unittest.TestCase):
             self.assertNotIn('-pdf', cmd)   # the project's latexmkrc picks the engine
             self.assertIn('-usepretex=\\PassOptionsToPackage{draft}{graphicx}\\includeonly{chapters/one}', cmd)
             self.assertIn('-xelatex', server.latexmk_cmd('xelatex'))
+        with tempfile.TemporaryDirectory() as d:   # TeX runs in the main file's folder; the PDF still goes to build/
+            write(d, {'paper/tex/main.tex': '\\documentclass{article}'})
+            server.configure(d, 'paper/tex/main.tex')
+            cmd = server.latexmk_cmd('pdflatex')
+            self.assertIn('-outdir=../../build', cmd)
+            self.assertEqual(cmd[-1], 'paper/tex/main.tex')
 
     def test_effective_engine(self):
         with tempfile.TemporaryDirectory() as d:
@@ -849,6 +855,55 @@ class Compile(ServerCase):
         self.assertEqual(code, 200, r)
         self.assertGreater(r['text'], 40)
         self.assertEqual(r['math_display'], 1)
+
+
+@unittest.skipUnless(HAVE_TEX, 'latexmk/synctex not installed')
+class MainInSubfolder(ServerCase):
+    """A project whose main file is not at the top, such as a repository with the paper in paper/: LaTeX finds
+    the files next to the main file, as it does when compiled by hand in that folder."""
+    main = 'paper/main.tex'
+    files = {
+        'README.md': 'The paper is in paper/.\n',
+        'paper/main.tex': '\\documentclass{article}\n\\usepackage{paperdefs}\n\\begin{document}\n'
+                          '\\input{sections/intro}\n\\include{chapters/one}\n'
+                          '\\bibliographystyle{plain}\n\\bibliography{refs}\n\\end{document}\n',
+        'paper/paperdefs.sty': '\\newcommand{\\projectname}{Subfolder}\n',
+        'paper/sections/intro.tex': '\\section{Introduction}\nThis is \\projectname, after~\\cite{knuth1984}.\n',
+        'paper/chapters/one.tex': '\\section{One}\nA chapter.\n',
+        'paper/refs.bib': '@book{knuth1984, author = {Donald E. Knuth}, title = {The {\\TeX}book},\n'
+                          '  publisher = {Addison-Wesley}, year = 1984}\n',
+    }
+
+    def test_compile_outline_and_synctex(self):
+        r = self.compile()
+        self.assertTrue(r['success'], r['log_tail'])
+        self.assertEqual((r['errors'], r['warnings']), ([], []))
+        self.assertTrue((self.root / 'build' / 'main.pdf').exists())
+        self.assertFalse((self.root / 'paper' / 'build').exists())
+        outline = self.get('/api/outline')[1]['entries']
+        self.assertEqual([e['file'] for e in outline], ['paper/sections/intro.tex', 'paper/chapters/one.tex'])
+
+        code, loc, _ = self.get('/api/synctex/view?path=paper/sections/intro.tex&line=2')
+        self.assertEqual(code, 200, loc)
+        code, src, _ = self.get(f"/api/synctex/edit?page=1&x={loc['x']}&y={loc['y']}")
+        self.assertEqual((code, src['path']), (200, 'paper/sections/intro.tex'), src)
+
+        intro = self.root / 'paper' / 'sections' / 'intro.tex'
+        intro.write_text(intro.read_text().replace('after', 'following'))
+        self.assertTrue(self.compile()['success'])
+        self.assertEqual([f['path'] for f in self.get('/api/changes')[1]['files']], ['paper/sections/intro.tex'])
+
+    def test_error_points_at_the_project_file(self):
+        intro = self.root / 'paper' / 'sections' / 'intro.tex'
+        intro.write_text(intro.read_text() + '\\undefinedcommand\n')
+        e = self.compile()['errors'][0]
+        self.assertEqual((e['file'], e['line'], e['external']), ('paper/sections/intro.tex', 3, False))
+
+    @unittest.skipUnless(HAVE['texcount'], 'texcount not installed')
+    def test_word_count(self):
+        code, r, _ = self.get('/api/wordcount')
+        self.assertEqual(code, 200, r)
+        self.assertGreaterEqual(r['text'], 4)   # was 0: texcount could not find the \\input and \\include files
 
 
 @unittest.skipUnless(HAVE_TEX, 'latexmk/synctex not installed')
