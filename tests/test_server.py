@@ -64,6 +64,23 @@ class ParseLog(unittest.TestCase):
             self.assertEqual([(e['file'], e['external']) for e in errors],
                              [('a.tex', False), (outside, True), ('C:/texlive/2024/texmf-dist/tex/latex/y/y.sty', True)])
 
+    def test_lua_error_and_its_stack_traceback(self):
+        with tempfile.TemporaryDirectory() as d:
+            log = '\n'.join([
+                "...share/texlive/texmf-dist/tex/latex/fontspec/fontspec.lua:49: attempt to index a nil value "
+                "(global 'luaotfload')",
+                'stack traceback:',
+                "\t...share/texlive/texmf-dist/tex/latex/fontspec/fontspec.lua:49: in field 'check_ot_script'",
+                '\t[\\directlua]:1: in main chunk.',
+                '\\lua_now:e #1->\\__lua_now:n {#1}',
+                '',
+                'l.24 \\babelprovide',
+            ])
+            errors, _ = latexlog.parse_log(log, Path(d).resolve())
+            # one error, not one per traceback line, and the shortened path is not taken for a project file
+            self.assertEqual([(e['file'], e['line'], e['external']) for e in errors],
+                             [('...share/texlive/texmf-dist/tex/latex/fontspec/fontspec.lua', 49, True)])
+
     def test_missing_package_printed_with_an_exclamation_mark(self):
         log = '\n'.join([
             "! LaTeX Error: File `etoolbox.sty' not found.",
