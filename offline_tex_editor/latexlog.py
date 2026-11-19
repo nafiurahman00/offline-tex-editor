@@ -91,15 +91,16 @@ def hint(message):
     return None
 
 
-def relpath(name, root):
-    """A log's file name as a project-relative POSIX path, or (name, True) when it is outside the project."""
+def relpath(name, root, cwd=None):
+    """A log's file name as a project-relative POSIX path, or (name, True) when it is outside the project. A relative
+    name is relative to cwd, the folder TeX ran in (default: root)."""
     name = name[2:] if name.startswith('./') else name
     if root is None:
         return name, False
     p = Path(name)
     if PureWindowsPath(name).anchor and not p.is_absolute():   # C:/... read on a non-Windows system
         return name, True
-    p = (p if p.is_absolute() else root / p).resolve()
+    p = (p if p.is_absolute() else (cwd or root) / p).resolve()
     if p == root or root in p.parents:
         return p.relative_to(root).as_posix(), False
     return name, True
@@ -121,9 +122,10 @@ def bbl_key(bbl, line):
     return None
 
 
-def parse_log(text, root=None, find_key=None):
+def parse_log(text, root=None, find_key=None, cwd=None):
     """Errors and warnings from a LaTeX .log. root: the project directory, to make paths relative. find_key(key):
-    where a bibliography key is defined, as (file, line), to point errors inside the .bbl at the .bib entry."""
+    where a bibliography key is defined, as (file, line), to point errors inside the .bbl at the .bib entry. cwd: the
+    folder TeX ran in, which relative names in the log are relative to (default: root)."""
     errors, warnings = [], []
     lines = text.splitlines()
     for i, line in enumerate(lines):
@@ -138,7 +140,7 @@ def parse_log(text, root=None, find_key=None):
                 msg += ' ' + lines[j].split(')', 1)[1].strip()
                 j += 1
             ctx = ' '.join(l.strip() for l in lines[j:j + 2] if l.strip())[:300]
-            path, external = relpath(name, root)
+            path, external = relpath(name, root, cwd)
             e = {'file': path, 'line': ln, 'message': msg, 'context': ctx, 'hint': hint(msg), 'external': external}
             if path.endswith('.bbl') and root is not None:
                 key = bbl_key((root / path) if not external else Path(name), ln)

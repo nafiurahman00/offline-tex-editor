@@ -144,6 +144,17 @@ def list_files():
     return project.list_files(ROOT)[0]
 
 
+def main_dir():
+    """The main file's folder. TeX runs there (latexmk -cd), so \\input, \\includegraphics, \\bibliography and
+    \\documentclass find the files next to the main file, and relative names in TeX's output are relative to it."""
+    return (ROOT / MAIN).parent
+
+
+def tex_path(name):
+    """A file name as TeX, BibTeX or SyncTeX write it (absolute, or relative to main_dir()), resolved inside ROOT."""
+    return safe(main_dir() / name)
+
+
 # ---------- compiling ----------
 
 def effective_engine():
@@ -167,7 +178,9 @@ def latexmk_cmd(engine, force=False):
         cmd.append('-g')
     if engine:
         cmd.append({'pdflatex': '-pdf', 'xelatex': '-xelatex', 'lualatex': '-lualatex'}[engine])
-    cmd += ['-f', '-interaction=nonstopmode', '-file-line-error', '-synctex=1', '-outdir=build', f'-jobname={JOB}']
+    outdir = Path(os.path.relpath(ROOT / 'build', main_dir())).as_posix()   # build/, seen from the main file's folder
+    cmd += ['-cd', '-f', '-interaction=nonstopmode', '-file-line-error', '-synctex=1', f'-outdir={outdir}',
+            f'-jobname={JOB}']
     if SHELL_ESCAPE:
         cmd.append('-shell-escape')
     pretex = ''
@@ -198,11 +211,12 @@ def kill_tree(proc):
 
 
 def mirror_dirs():
-    """Create build/<dir> for each source folder. TeX cannot create folders, so with an output directory,
-    \\include{chapters/one} fails ("I can't write on file chapters/one.aux") unless build/chapters exists."""
-    for p, rel in project.walk(ROOT):
-        if p.suffix == '.tex' and '/' in rel:
-            (ROOT / 'build' / rel).parent.mkdir(parents=True, exist_ok=True)
+    """Create build/<dir> for each source folder below the main file's. TeX cannot create folders, so with an output
+    directory, \\include{chapters/one} fails ("I can't write on file chapters/one.aux") unless build/chapters exists."""
+    base = main_dir()
+    for p, _ in project.walk(ROOT):
+        if p.suffix == '.tex' and base in p.parent.parents:
+            (ROOT / 'build' / p.parent.relative_to(base)).mkdir(parents=True, exist_ok=True)
 
 
 def run_latexmk(cmd):
@@ -245,7 +259,7 @@ def bib_file(name):
     if not name:
         return None
     try:
-        p = safe(name)
+        p = tex_path(name)
         if p.is_file():
             return rel_of(p)
     except PermissionError:
@@ -263,7 +277,8 @@ def read_logs():
         index = bib_index() if index is None else index
         return index.get(key)
 
-    errors, warnings = latexlog.parse_log(project.read_text(log_path) if log_path.exists() else '', ROOT, find_key)
+    errors, warnings = latexlog.parse_log(project.read_text(log_path) if log_path.exists() else '', ROOT, find_key,
+                                          main_dir())
     if blg_path.exists():
         berr, bwarn, _ = latexlog.parse_blg(project.read_text(blg_path))
         for item in berr + bwarn:
@@ -371,7 +386,7 @@ def compile_inputs():
     out = set()
     for r in rels:
         try:
-            p = safe(r)
+            p = tex_path(r)
         except PermissionError:
             continue
         if p.is_file() and project.is_editable(p) and not project.skipped(p.relative_to(ROOT)):
@@ -472,7 +487,7 @@ def synctex_names():
                     name = line.split(':', 2)[2].rstrip('\n')
                     p = Path(name)
                     try:
-                        names.setdefault((p if p.is_absolute() else ROOT / p).resolve(), name)
+                        names.setdefault((main_dir() / p).resolve(), name)
                     except OSError:
                         pass
         _synctex_cache.update(key=key, names=names)
@@ -511,7 +526,7 @@ def synctex_edit(page, x, y):
     if not f:
         raise FileNotFoundError('no source location for that spot')
     p = Path(f.group(1))
-    p = (p if p.is_absolute() else ROOT / p).resolve()
+    p = (main_dir() / p).resolve()
     if ROOT not in p.parents:
         raise FileNotFoundError(f'that spot comes from {f.group(1)}, outside the project')
     return {'path': rel_of(p), 'line': max(1, int(ln.group(1))) if ln else 1}
@@ -528,8 +543,8 @@ WORDCOUNT_FIELDS = {'Words in text': 'text', 'Words in headers': 'headers',
 def word_count():
     if shutil.which('texcount') is None:
         raise UserError('texcount not found. It comes with TeX Live (on Debian/Ubuntu: texlive-extra-utils).')
-    p = subprocess.run(['texcount', '-inc', '-total', '-utf8', '-q', MAIN], cwd=ROOT, capture_output=True, text=True,
-                       encoding='utf-8', errors='replace', timeout=60)
+    p = subprocess.run(['texcount', '-inc', '-total', '-utf8', '-q', Path(MAIN).name], cwd=main_dir(),
+                       capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=60)
     out = {}
     for line in p.stdout.splitlines():
         k, _, v = line.partition(':')
