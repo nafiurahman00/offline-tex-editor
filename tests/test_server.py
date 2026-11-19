@@ -132,6 +132,23 @@ class ParseBlg(unittest.TestCase):
         self.assertEqual([(w['file'], w['line']) for w in warnings], [(None, None), ('refs.bib', 9)])
         self.assertIn('not in any .bib', warnings[0]['hint'])
 
+    def test_bibtex_missing_style_is_listed_once(self):
+        blg = '\n'.join([
+            'The top-level auxiliary file: sn-article.aux',
+            "I couldn't open style file sn-mathphys-num.bst",
+            '---line 2 of file sn-article.aux',
+            ' : \\bibstyle{sn-mathphys-num',
+            ' :                          }',
+            "I'm skipping whatever remains of this command",
+            'I found no style file---while reading file sn-article.aux',
+        ])
+        errors, _, _ = latexlog.parse_blg(blg)
+        self.assertEqual([(e['message'], e['file']) for e in errors],
+                         [("BibTeX: I couldn't open style file sn-mathphys-num.bst", None),
+                          ('BibTeX: I found no style file---while reading file sn-article.aux', None)])
+        self.assertEqual(errors[0]['context'], '\\bibstyle{sn-mathphys-num }')
+        self.assertIn('sn-mathphys-num.bst', errors[0]['hint'])
+
     def test_biber(self):
         blg = '\n'.join([
             "[52] Biber.pm:418> INFO - Looking for bibtex file 'refs.bib' for section 0",
