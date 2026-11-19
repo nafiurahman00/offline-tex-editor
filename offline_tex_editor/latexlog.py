@@ -7,6 +7,7 @@ from pathlib import Path, PureWindowsPath
 # "file:line: message", as written with -file-line-error. The path may start with a Windows drive letter.
 ERR = re.compile(r'^((?:[A-Za-z]:)?[^:\n]*?\.[A-Za-z0-9]{1,8}):(\d+): (.*)$')
 WARN = re.compile(r'(?:LaTeX|Package [\w-]+|Class [\w-]+) Warning: (.*?)(?: on input line (\d+))?\.?$')
+ENGINE_ERR = re.compile(r'!\w*TeX error\b')   # the engine's own errors, such as "!pdfTeX error:"
 WARN_KEYWORDS = ('undefined', 'Citation', 'Reference', 'multiply', 'could not be found', 'Rerun to get')
 
 # (pattern on the message, hint). {0}, {1} are the pattern's groups; the hint is a str.format() template, so a
@@ -153,9 +154,12 @@ def parse_log(text, root=None, find_key=None, cwd=None):
             errors.append(e)
             continue
         # Some errors are printed as "! message" even with -file-line-error, notably "! LaTeX Error: File `x.sty'
-        # not found." when a package is missing. Without this, only the "Emergency stop" after it would show.
-        if line.startswith('! ') and not any(e['message'] == line[2:].strip() for e in errors):
-            msg = line[2:].strip()
+        # not found." when a package is missing. Without this, only the "Emergency stop" after it would show. The
+        # engine's own fatal errors have no space after the "!", such as "!pdfTeX error: pdflatex (file ./fig.pdf):
+        # PDF inclusion: required page does not exist" or a missing font, and are often the only error in the log.
+        if (line.startswith('! ') or ENGINE_ERR.match(line)) and \
+                not any(e['message'] == line[1:].strip() for e in errors):
+            msg = line[1:].strip()
             at = next((l for l in lines[i + 1:i + 8] if re.match(r'l\.\d+ ', l)), '')
             errors.append({'file': None, 'line': None, 'message': msg, 'context': at.strip()[:300], 'hint': hint(msg),
                            'external': True})

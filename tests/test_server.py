@@ -84,6 +84,20 @@ class ParseLog(unittest.TestCase):
         errors, _ = latexlog.parse_log('./a.tex:3: Undefined control sequence.\n! Undefined control sequence.\n')
         self.assertEqual(len(errors), 1)
 
+    def test_engine_error_without_a_space_after_the_exclamation_mark(self):
+        # pdfTeX's own fatal errors, often the only error in the log of a compile that produced no PDF
+        log = '\n'.join([
+            '(/usr/share/texlive/texmf-dist/tex/latex/latexconfig/epstopdf-sys.cfg))',
+            '!pdfTeX error: pdflatex (file ./one.pdf): PDF inclusion: required page does not exist <5>',
+            ' ==> Fatal error occurred, no output PDF file produced!',
+            '!pdfTeX error: pdflatex (file t1-zi4r-0): Font t1-zi4r-0 at 600 not found',
+        ])
+        errors, _ = latexlog.parse_log(log)
+        self.assertEqual([e['message'] for e in errors],
+                         ['pdfTeX error: pdflatex (file ./one.pdf): PDF inclusion: required page does not exist <5>',
+                          'pdfTeX error: pdflatex (file t1-zi4r-0): Font t1-zi4r-0 at 600 not found'])
+        self.assertEqual(latexlog.parse_log('!Not an error line\n')[0], [])
+
     def test_hints(self):
         cases = {
             "! LaTeX Error: File `tikz-cd.sty' not found.": 'tikz-cd.sty is not installed',
