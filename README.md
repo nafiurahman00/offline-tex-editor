@@ -144,7 +144,7 @@ TeX installation, so reports are welcome.
 
 ## What's new
 
-### 0.3.1 (not released yet)
+### 0.3.1 (2026-11-22)
 
 - **A new side bar**: one icon each for Files, Outline, Search, Git and WebDAV, instead of tab buttons cut short. The
   number of changed files shows on the Git icon, and a dot on the WebDAV icon when there is something to sync
