@@ -28,6 +28,12 @@ In scope, for example:
 - command or argument injection into `latexmk`, `synctex`, `texcount` or `git`;
 - script injection into the editor page from file names, file contents, git output, LaTeX or BibTeX logs, or
   bibliography entries, and scripts in uploaded files (such as SVG) running in the editor's origin;
+- a WebDAV server, or anyone who can write to the synced folder, writing files outside the project folder, inside
+  `.git/` or `build/`, or of types the editor does not offer, or getting a new or changed `.latexmkrc` in without the
+  user accepting it; and a sync deleting, here or on the server, files it does not sync (with a folder that holds
+  them, say);
+- the WebDAV password being written to disk, sent over plain http, or sent to any address other than the one the user
+  entered;
 - ways around the page's Content-Security-Policy.
 
 Out of scope:
@@ -35,5 +41,6 @@ Out of scope:
 - running with `--host` set to a non-loopback address without an authenticating proxy in front (the
   documentation and the start-up warning say not to);
 - anything a LaTeX project itself can do when compiled (`.latexmkrc` is Perl code, and `\write18` when shell
-  escape is enabled). Compiling a project means trusting it, as with any LaTeX toolchain;
+  escape is enabled), also when a teammate synced it in. Compiling a project means trusting it, as with any LaTeX
+  toolchain;
 - other users on the same multi-user machine who can connect to the loopback port.

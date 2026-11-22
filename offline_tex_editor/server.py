@@ -1,7 +1,9 @@
 """Offline TeX Editor: a LaTeX editor that runs on your own machine. Edit in the browser, compile with latexmk,
-preview the PDF with SyncTeX both ways, find and replace, and use git. Standard library only; serves on 127.0.0.1 by default.
+preview the PDF with SyncTeX both ways, find and replace, use git, and sync with a WebDAV folder. Standard library
+only; serves on 127.0.0.1 by default.
 
     offline-tex-editor [--root PROJECT_DIR] [--main FILE] [--engine auto] [--port N] [--open]
+    offline-tex-editor --root PROJECT_DIR --webdav FOLDER_URL [--webdav-user NAME]
 
 Compiles with latexmk into <root>/build/<jobname>.pdf with -synctex=1, and -f so a PDF is still produced when there
 are errors.
@@ -9,6 +11,7 @@ are errors.
 import argparse
 import base64
 import difflib
+import getpass
 import gzip
 import json
 import mimetypes
@@ -25,7 +28,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse, urlsplit
 
-from . import __version__, gitapi, latexlog, project
+from . import __version__, gitapi, latexlog, project, webdav
 
 HERE = Path(__file__).resolve().parent
 STATIC = {'static': HERE / 'static', 'vendor': HERE / 'vendor'}
@@ -54,6 +57,7 @@ ANY_HOST = False
 settings = {'draft': False, 'only': None}
 compile_lock = threading.Lock()
 git_lock = threading.Lock()
+webdav_lock = threading.Lock()
 fs_lock = threading.Lock()
 proc_state = {'proc': None, 'stop': False, 'force_next': False, 'last_sig': None}
 last_compile = {}
@@ -585,13 +589,7 @@ def fs_delete(b):
         main = ROOT / MAIN
         if p == main or p in main.parents:
             raise UserError('this is the main document (or its folder); choose another main document first')
-        # Not deleted: moved to build/.editor-trash/<time>/, so a mistake can be undone.
-        base = ROOT / 'build' / '.editor-trash' / time.strftime('%Y%m%d-%H%M%S')
-        dest, n = base / rel_of(p), 1
-        while dest.exists():
-            dest, n = base.with_name(f'{base.name}-{n}') / rel_of(p), n + 1
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        shutil.move(str(p), str(dest))
+        dest = project.trash(ROOT, p)  # not deleted, so a mistake can be undone
     return {'trash': rel_of(dest)}
 
 
@@ -705,6 +703,7 @@ GET_ROUTES = {
     '/api/git/diff': lambda q: gitapi.diff(ROOT, q['path'], q.get('staged') == '1'),
     '/api/git/log': lambda q: gitapi.log(ROOT),
     '/api/git/show': lambda q: gitapi.show(ROOT, q['rev']),
+    '/api/webdav/status': lambda q: webdav.status(ROOT),
 }
 POST_ROUTES = {
     '/api/file': h_save,
@@ -729,6 +728,24 @@ GIT_OPS = {
     'sync': lambda b: gitapi.sync(ROOT, b.get('mode', 'ff')),
     'remote': lambda b: gitapi.set_remote(ROOT, b.get('url', '')),
     'init': lambda b: gitapi.init(ROOT),
+}
+def h_webdav_sync(b):
+    """Sync, and keep compiling the same document when the sync renamed it (a rename that changed only the case)."""
+    global MAIN
+    r = webdav.sync(ROOT, MAIN, b.get('accept') or [])
+    for old, new in r['result']['renamed_here']:
+        if MAIN == old or MAIN.startswith(old + '/'):
+            MAIN = new + MAIN[len(old):]
+    return dict(r, main=MAIN)
+
+
+# Each one asks the server (only POSTs may: another site's page can make the browser send a GET, but not a JSON POST).
+WEBDAV_OPS = {
+    'connect': lambda b: webdav.connect(ROOT, b.get('url', ''), b.get('user', ''), b.get('password', '')),
+    'disconnect': lambda b: webdav.disconnect(ROOT),
+    'check': lambda b: webdav.check(ROOT, MAIN),
+    'sync': lambda b: h_webdav_sync(b),
+    'peek': lambda b: webdav.peek(ROOT, b.get('path')),
 }
 
 
@@ -782,7 +799,9 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(409, e.payload)
         if isinstance(e, KeyError):
             return self.send(400, {'error': f'missing parameter {e}'})
-        if isinstance(e, (UserError, gitapi.GitError, ValueError)):
+        if isinstance(e, webdav.NeedPassword):
+            return self.send(400, {'error': str(e), 'needs_password': True})
+        if isinstance(e, (UserError, gitapi.GitError, webdav.DavError, ValueError)):
             return self.send(400, {'error': str(e)})
         if isinstance(e, FileNotFoundError):
             return self.send(404, {'error': str(e)})
@@ -839,6 +858,16 @@ class Handler(BaseHTTPRequestHandler):
                     return self.send(404, {'error': 'unknown git operation'})
                 with git_lock:
                     return self.send(200, op(b))
+            if u.path.startswith('/api/webdav/'):
+                op = WEBDAV_OPS.get(u.path.rsplit('/', 1)[1])
+                if op is None:
+                    return self.send(404, {'error': 'unknown WebDAV operation'})
+                if not webdav_lock.acquire(blocking=False):
+                    raise Conflict({'error': 'a WebDAV sync is already running'})
+                try:
+                    return self.send(200, op(b))
+                finally:
+                    webdav_lock.release()
             return self.send(404, {'error': 'not found'})
         except Exception as e:
             return self.fail(e)
@@ -884,8 +913,18 @@ def main(argv=None):
     ap.add_argument('--port', type=int, help=f'port (default: the first free one from {DEFAULT_PORT})')
     ap.add_argument('--open', action='store_true', help='open the editor in the default browser')
     ap.add_argument('--no-initial-compile', action='store_true')
+    ap.add_argument('--webdav', metavar='URL',
+                    help='first get the project from this WebDAV folder (or send it there), and keep the two connected; '
+                         '--root is created if needed')
+    ap.add_argument('--webdav-user', metavar='NAME', default='',
+                    help='user name for --webdav; the password is asked for, unless it is in ~/.netrc')
     ap.add_argument('--version', action='version', version=f'%(prog)s {__version__}')
     a = ap.parse_args(argv)
+    if a.webdav:
+        try:
+            print(webdav.clone(a.root.resolve(), a.webdav, a.webdav_user, getpass.getpass), flush=True)
+        except (webdav.DavError, OSError) as e:
+            raise SystemExit(f'WebDAV: {e}')
     try:
         configure(a.root, a.main, a.jobname, a.host, a.engine, a.shell_escape, a.timeout)
     except ValueError as e:
@@ -896,7 +935,7 @@ def main(argv=None):
               flush=True)
     if ANY_HOST:
         print('warning: listening on all interfaces with no authentication; anyone who can reach this port can '
-              'edit files and push with your git credentials', flush=True)
+              'edit files, push with your git credentials and sync with your WebDAV password', flush=True)
     if SHELL_ESCAPE:
         print('warning: --shell-escape lets this project run programs on your computer when it compiles', flush=True)
     srv = make_server(a.host, a.port)

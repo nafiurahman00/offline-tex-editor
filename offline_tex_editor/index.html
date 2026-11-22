@@ -55,7 +55,7 @@
 <main>
   <aside id="side">
     <div id="sideTabs" role="tablist">
-      <button data-tab="files" class="on">Files</button><button data-tab="outline">Outline</button><button data-tab="search">Search</button><button data-tab="git">Git <span id="gitBadge"></span></button>
+      <button data-tab="files" class="on">Files</button><button data-tab="outline">Outline</button><button data-tab="search">Search</button><button data-tab="git">Git <span id="gitBadge"></span></button><button data-tab="dav" title="Sync with a WebDAV folder (Nextcloud, ownCloud, …)">WebDAV <span id="davBadge"></span></button>
     </div>
     <div id="filesPane" class="pane">
       <input id="filter" placeholder="Filter files…" autocomplete="off" aria-label="Filter files">
@@ -96,6 +96,20 @@
       </div>
       <div id="gitMsgOut"></div>
       <div class="scroll" id="gitScroll"><div id="gitLists"></div><div class="gsec">History</div><div id="gitLog"></div></div>
+    </div>
+    <div id="davPane" class="pane" hidden>
+      <div id="davSetup" class="gitBox" hidden>
+        <p class="note" id="davIntro">Share this project with your team through a folder on a WebDAV server, such as Nextcloud or ownCloud. Everyone edits their own copy and presses Sync.</p>
+        <label class="field">Folder address <input id="davUrl" placeholder="https://cloud.example.org/remote.php/dav/files/you/Thesis/" autocomplete="off" spellcheck="false"></label>
+        <label class="field">User name <input id="davUser" autocomplete="username" spellcheck="false"></label>
+        <label class="field">Password <input id="davPass" type="password" autocomplete="current-password"></label>
+        <p class="note">The password is kept only while the editor runs; to have it remembered, put it in your <code>~/.netrc</code> file. With two-factor sign-in, use an app password.</p>
+        <div class="gitBtns"><button class="primary" id="davConnect">Connect</button></div>
+      </div>
+      <div id="davHead" hidden><span id="davWhere"></span><span id="davWhen"></span></div>
+      <div class="gitBtns" id="davBtns" hidden><button id="davCheck" title="Check the server for changes">⟳</button><button class="primary" id="davSync" title="Upload what changed here, download what changed on the server">Sync</button><button id="davDisconnect" title="Stop syncing this project (no files are deleted)">Disconnect</button></div>
+      <div id="davOut"></div>
+      <div class="scroll" id="davLists"></div>
     </div>
   </aside>
   <section id="editorWrap">
