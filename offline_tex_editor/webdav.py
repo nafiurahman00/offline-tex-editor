@@ -1142,6 +1142,7 @@ def clone(root, url, user, ask_password):
     """For --webdav: connect root (created if needed) to the folder and sync it, asking for the password with
     ask_password(prompt) when there is none. Returns a summary to print."""
     root.mkdir(parents=True, exist_ok=True)
+    root = root.resolve()   # inside() compares resolved paths (a symlink, or a short name like RUNNER~1 on Windows)
     try:
         connect(root, url, user)
     except NeedPassword:
