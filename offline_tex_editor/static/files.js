@@ -1,7 +1,8 @@
 // The file list: tree, filter, new/rename/delete, upload (button or drag and drop), image and PDF previews.
-import { $, el, app, state, project, store, pkey, api, post, setStatus, dirOf, baseName } from './util.js';
+import { $, el, app, state, project, store, pkey, api, post, setStatus, dirOf, baseName, icon } from './util.js';
 
 const IMAGE = /\.(png|jpe?g|gif|svg|webp|bmp)$/i;
+const fileIcon = p => icon(IMAGE.test(p) ? 'image' : /\.bib$/i.test(p) ? 'bib' : /\.(tex|ltx|sty|cls)$/i.test(p) ? 'tex' : 'file');
 
 export async function loadFiles() {
   const r = await api('/api/files');
@@ -31,10 +32,10 @@ export function renderFiles() {
   const fileRow = (f, depth) => {
     const row = el('div', { className: 'f' + (f.asset ? ' asset' : '') + (f.path === state.current ? ' active' : '') + (app.isDirty?.(f.path) ? ' mod' : ''),
                             title: f.path, dataset: { path: f.path }, onclick: () => f.asset ? preview(f.path) : app.openFile(f.path) },
-      el('span', { className: 'nm' }, baseName(f.path)),
+      fileIcon(f.path), el('span', { className: 'nm' }, baseName(f.path)),
       f.path === project.main ? el('span', { className: 'badge', title: 'Main document' }, 'main') : null,
       actions(f.path, false));
-    row.style.paddingLeft = (18 + depth * 12) + 'px';
+    row.style.paddingLeft = (24 + depth * 14) + 'px';
     rows.push(row);
   };
   const walk = (n, path, depth) => {
@@ -45,10 +46,10 @@ export function renderFiles() {
       const d = path ? `${path}/${name}` : name, child = n.dirs.get(name);
       if (q && !hasMatch(child, q)) continue;
       const open = q || !collapsed.has(d);
-      const head = el('div', { className: 'dir toggle', title: d, dataset: { dir: d }, onclick: () => {
+      const head = el('div', { className: 'dir toggle' + (open ? ' open' : ''), title: d, dataset: { dir: d }, onclick: () => {
         const s = new Set(store.get(pkey('collapsed'), [])); s.has(d) ? s.delete(d) : s.add(d); store.set(pkey('collapsed'), [...s]); renderFiles();
-      } }, el('span', { className: 'nm' }, (open ? '▾ ' : '▸ ') + name), el('span', { className: 'spacer' }), actions(d, true));
-      head.style.paddingLeft = (8 + depth * 12) + 'px';
+      } }, icon('chevron', 'chev'), icon('folder', 'fold'), el('span', { className: 'nm' }, name), actions(d, true));
+      head.style.paddingLeft = (6 + depth * 14) + 'px';
       rows.push(head);
       if (open) walk(child, d, depth + 1);
     }
@@ -62,9 +63,10 @@ $('filter').oninput = renderFiles;
 function actions(path, isDir) {
   const stop = fn => e => { e.stopPropagation(); fn(e); };
   return el('span', { className: 'acts' },
-    isDir ? el('button', { title: 'New file here', onclick: stop(() => openForm('file', path + '/')) }, '+') : null,
-    el('button', { title: 'Rename or move', onclick: stop(() => openForm('rename', path)) }, '✎'),
-    path === project.main ? null : el('button', { title: 'Delete (moves it to build/.editor-trash)', onclick: stop(e => confirmDelete(e.target.closest('.f, .dir'), path)) }, '×'));
+    isDir ? el('button', { className: 'icon', title: 'New file here', onclick: stop(() => openForm('file', path + '/')) }, icon('plus')) : null,
+    el('button', { className: 'icon', title: 'Rename or move', onclick: stop(() => openForm('rename', path)) }, icon('pencil')),
+    path === project.main ? null : el('button', { className: 'icon del', title: 'Delete (moves it to build/.editor-trash)',
+                                                  onclick: stop(e => confirmDelete(e.currentTarget.closest('.f, .dir'), path)) }, icon('trash')));
 }
 
 function confirmDelete(row, path) {

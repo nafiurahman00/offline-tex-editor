@@ -27,7 +27,7 @@ $('themeBtn').onclick = () => {
 export function showTab(t) {
   for (const b of document.querySelectorAll('#sideTabs button')) {
     const on = b.dataset.tab === t;
-    b.classList.toggle('on', on); $(b.dataset.tab + 'Pane').hidden = !on;
+    b.classList.toggle('on', on); b.setAttribute('aria-selected', on); $(b.dataset.tab + 'Pane').hidden = !on;
   }
   store.set('sideTab', t);
   if (t === 'git') app.gitRefresh(false);

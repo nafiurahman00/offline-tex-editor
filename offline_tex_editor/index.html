@@ -9,6 +9,28 @@
 <link rel="stylesheet" href="static/app.css">
 </head>
 <body>
+<!-- Icons, drawn as 24×24 line art: <svg class="ic"><use href="#i-name"/></svg>, or icon('name') in the scripts -->
+<svg width="0" height="0" style="position: absolute" aria-hidden="true"><defs>
+  <symbol id="i-files" viewBox="0 0 24 24"><path d="M9 3h6.5L20 7.5V16a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M15 3v5h5"/><path d="M4 8v11a2 2 0 0 0 2 2h9"/></symbol>
+  <symbol id="i-outline" viewBox="0 0 24 24"><path d="M15.5 5.6C15 4.3 13.7 3.5 12 3.5c-2 0-3.5 1.1-3.5 2.7 0 3.6 7.5 3 7.5 7.1 0 1.2-.8 2.1-2 2.6"/><path d="M8.5 18.4c.5 1.3 1.8 2.1 3.5 2.1 2 0 3.5-1.1 3.5-2.7 0-3.6-7.5-3-7.5-7.1 0-1.2.8-2.1 2-2.6"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m20 20-4.8-4.8"/></symbol>
+  <symbol id="i-git" viewBox="0 0 24 24"><circle cx="6.5" cy="5.5" r="2.25"/><circle cx="6.5" cy="18.5" r="2.25"/><circle cx="17.5" cy="7.5" r="2.25"/><path d="M6.5 7.75v8.5"/><path d="M17.5 9.75c0 3.6-2.6 5-6 5.4-2 .2-3.6.6-4.2 1.3"/></symbol>
+  <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7.5 19h10a4 4 0 0 0 .5-7.97A6 6 0 0 0 6.4 10.1 4.5 4.5 0 0 0 7.5 19z"/><path d="m9.5 13.5 2.5-2.5 2.5 2.5M12 11v5.5"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M7 3h7l5 5v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M14 3v5h5"/></symbol>
+  <symbol id="i-tex" viewBox="0 0 24 24"><path d="M7 3h7l5 5v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M14 3v5h5"/><path d="M8.5 13h7M8.5 16.5h4.5"/></symbol>
+  <symbol id="i-bib" viewBox="0 0 24 24"><path d="M5 5.5A2.5 2.5 0 0 1 7.5 3H19v14H7.5A2.5 2.5 0 0 0 5 19.5z"/><path d="M5 19.5A1.5 1.5 0 0 0 6.5 21H19v-4"/><path d="M9 7.5h6"/></symbol>
+  <symbol id="i-image" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m20.5 15.5-4.5-4.5-9.5 8.5"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3.5 7a2 2 0 0 1 2-2h3.8l2.2 2.5h7a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></symbol>
+  <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m9.5 6 6 6-6 6"/></symbol>
+  <symbol id="i-file-plus" viewBox="0 0 24 24"><path d="M7 3h7l5 5v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M14 3v5h5"/><path d="M12 11.5v6M9 14.5h6"/></symbol>
+  <symbol id="i-folder-plus" viewBox="0 0 24 24"><path d="M3.5 7a2 2 0 0 1 2-2h3.8l2.2 2.5h7a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/><path d="M12 10.5v5.5M9.25 13.25h5.5"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5"/><path d="M4.5 14.5V18a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-3.5"/></symbol>
+  <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M15 5.5 18.5 9M16.6 3.9a2.1 2.1 0 0 1 3 3L8.5 18l-4 1 1-4z"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.5 7h15M10 11v6M14 11v6"/><path d="m6.5 7 .9 12.1a2 2 0 0 0 2 1.9h5.2a2 2 0 0 0 2-1.9L17.5 7M9.5 7V4.5h5V7"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M19.5 12a7.5 7.5 0 1 1-2.4-5.5"/><path d="M19.5 3.5v4h-4"/></symbol>
+</defs></svg>
 <header>
   <span class="title">Offline TeX Editor</span>
   <span id="mainDoc" class="muted" title="Main document (change it in ⚙)"></span>
@@ -54,31 +76,41 @@
 
 <main>
   <aside id="side">
-    <div id="sideTabs" role="tablist">
-      <button data-tab="files" class="on">Files</button><button data-tab="outline">Outline</button><button data-tab="search">Search</button><button data-tab="git">Git <span id="gitBadge"></span></button><button data-tab="dav" title="Sync with a WebDAV folder (Nextcloud, ownCloud, …)">WebDAV <span id="davBadge"></span></button>
-    </div>
-    <div id="filesPane" class="pane">
-      <input id="filter" placeholder="Filter files…" autocomplete="off" aria-label="Filter files">
-      <div class="row">
-        <button id="newFileBtn" title="New file">+ File</button><button id="newFolderBtn" title="New folder">+ Folder</button><button id="uploadBtn" title="Add files (or drop them on the list)">Upload</button>
+    <nav id="sideTabs" role="tablist" aria-label="Side panels" aria-orientation="vertical">
+      <button data-tab="files" role="tab" aria-label="Files" title="Files" class="on"><svg class="ic"><use href="#i-files"/></svg></button>
+      <button data-tab="outline" role="tab" aria-label="Outline" title="Outline: the sections of the document"><svg class="ic"><use href="#i-outline"/></svg></button>
+      <button data-tab="search" role="tab" aria-label="Search" title="Search and replace in all files (Ctrl/Cmd+Shift+F)"><svg class="ic"><use href="#i-search"/></svg></button>
+      <button data-tab="git" role="tab" aria-label="Git" title="Git"><svg class="ic"><use href="#i-git"/></svg><span id="gitBadge"></span></button>
+      <button data-tab="dav" role="tab" aria-label="WebDAV" title="WebDAV: sync with a folder on a server (Nextcloud, ownCloud, …)"><svg class="ic"><use href="#i-cloud"/></svg><span id="davBadge"></span></button>
+    </nav>
+    <div id="filesPane" class="pane" role="tabpanel" aria-label="Files">
+      <div class="paneHead"><h2>Files</h2>
+        <button class="icon" id="newFileBtn" title="New file" aria-label="New file"><svg class="ic"><use href="#i-file-plus"/></svg></button>
+        <button class="icon" id="newFolderBtn" title="New folder" aria-label="New folder"><svg class="ic"><use href="#i-folder-plus"/></svg></button>
+        <button class="icon" id="uploadBtn" title="Add files (or drop them on the list)" aria-label="Add files"><svg class="ic"><use href="#i-upload"/></svg></button>
         <input type="file" id="uploadInput" multiple hidden>
       </div>
+      <div class="field-ic"><svg class="ic"><use href="#i-search"/></svg><input id="filter" placeholder="Filter files" autocomplete="off" aria-label="Filter files"></div>
       <div id="fsForm" hidden><input id="fsInput" autocomplete="off" spellcheck="false"><div id="fsHint"></div></div>
       <div class="scroll" id="files"></div>
     </div>
-    <div id="outlinePane" class="pane" hidden><div class="scroll" id="outline"></div></div>
-    <div id="searchPane" class="pane" hidden>
-      <input id="searchInput" placeholder="Search all files" autocomplete="off" spellcheck="false" aria-label="Search all files">
+    <div id="outlinePane" class="pane" role="tabpanel" aria-label="Outline" hidden>
+      <div class="paneHead"><h2>Outline</h2></div>
+      <div class="scroll" id="outline"></div>
+    </div>
+    <div id="searchPane" class="pane" role="tabpanel" aria-label="Search" hidden>
+      <div class="paneHead"><h2>Search</h2><span id="searchCount"></span></div>
+      <div class="field-ic"><svg class="ic"><use href="#i-search"/></svg><input id="searchInput" placeholder="Search all files" autocomplete="off" spellcheck="false" aria-label="Search all files"></div>
       <div class="row toggles">
-        <label title="Match case"><input type="checkbox" id="sCase"> Aa</label>
-        <label title="Whole words"><input type="checkbox" id="sWord"> Word</label>
-        <label title="Regular expression; $1 in the replacement inserts a group"><input type="checkbox" id="sRegex"> .*</label>
+        <label class="tog" title="Match case"><input type="checkbox" id="sCase"> Aa</label>
+        <label class="tog" title="Whole words"><input type="checkbox" id="sWord"> Word</label>
+        <label class="tog" title="Regular expression; $1 in the replacement inserts a group"><input type="checkbox" id="sRegex"> .*</label>
       </div>
-      <input id="replaceInput" placeholder="Replace with" autocomplete="off" spellcheck="false" aria-label="Replace with">
-      <div class="row"><button id="replaceAllBtn" disabled>Replace all</button><span id="searchCount"></span></div>
+      <div class="row"><input id="replaceInput" placeholder="Replace with" autocomplete="off" spellcheck="false" aria-label="Replace with"><button id="replaceAllBtn" disabled>Replace all</button></div>
       <div class="scroll" id="searchResults"></div>
     </div>
-    <div id="gitPane" class="pane" hidden>
+    <div id="gitPane" class="pane" role="tabpanel" aria-label="Git" hidden>
+      <div class="paneHead"><h2>Git</h2></div>
       <div id="gitHead"><span id="gitBranch">…</span><span id="gitSync"></span></div>
       <div id="gitInit" class="gitBox" hidden>
         <p class="note">This project is not a git repository yet. Start one to keep a history of your changes and sync it with GitHub.</p>
@@ -89,7 +121,7 @@
         <div class="row"><input id="gitRemoteUrl" placeholder="https://github.com/you/project.git" autocomplete="off" spellcheck="false" aria-label="Repository address"><button id="gitConnectBtn">Connect</button></div>
       </div>
       <div id="gitState" hidden></div>
-      <div class="gitBtns" id="gitRemoteBtns"><button id="gitRefresh" title="Fetch and refresh">⟳</button><button id="gitPull" title="Pull">Pull</button><button id="gitPush" title="Push to the remote">Push</button><button id="gitSyncBtn" title="Pull, then push: bring this branch and GitHub in step">Sync</button></div>
+      <div class="gitBtns seg" id="gitRemoteBtns"><button class="icon" id="gitRefresh" title="Fetch and refresh" aria-label="Fetch and refresh"><svg class="ic"><use href="#i-refresh"/></svg></button><button id="gitPull" title="Pull">Pull</button><button id="gitPush" title="Push to the remote">Push</button><button id="gitSyncBtn" title="Pull, then push: bring this branch and GitHub in step">Sync</button></div>
       <div id="gitCommitBox">
         <textarea id="gitMsg" rows="3" placeholder="Commit message (Ctrl/Cmd+Enter to commit)"></textarea>
         <div class="gitBtns"><button class="primary" id="gitCommit">Commit staged</button><button id="gitStageAll" title="Stage every change">Stage all</button></div>
@@ -97,7 +129,8 @@
       <div id="gitMsgOut"></div>
       <div class="scroll" id="gitScroll"><div id="gitLists"></div><div class="gsec">History</div><div id="gitLog"></div></div>
     </div>
-    <div id="davPane" class="pane" hidden>
+    <div id="davPane" class="pane" role="tabpanel" aria-label="WebDAV" hidden>
+      <div class="paneHead"><h2>WebDAV</h2></div>
       <div id="davSetup" class="gitBox" hidden>
         <p class="note" id="davIntro">Share this project with your team through a folder on a WebDAV server, such as Nextcloud or ownCloud. Everyone edits their own copy and presses Sync.</p>
         <label class="field">Folder address <input id="davUrl" placeholder="https://cloud.example.org/remote.php/dav/files/you/Thesis/" autocomplete="off" spellcheck="false"></label>
@@ -107,7 +140,7 @@
         <div class="gitBtns"><button class="primary" id="davConnect">Connect</button></div>
       </div>
       <div id="davHead" hidden><span id="davWhere"></span><span id="davWhen"></span></div>
-      <div class="gitBtns" id="davBtns" hidden><button id="davCheck" title="Check the server for changes">⟳</button><button class="primary" id="davSync" title="Upload what changed here, download what changed on the server">Sync</button><button id="davDisconnect" title="Stop syncing this project (no files are deleted)">Disconnect</button></div>
+      <div class="gitBtns" id="davBtns" hidden><button class="icon" id="davCheck" title="Check the server for changes" aria-label="Check the server for changes"><svg class="ic"><use href="#i-refresh"/></svg></button><button class="primary" id="davSync" title="Upload what changed here, download what changed on the server">Sync</button><button id="davDisconnect" title="Stop syncing this project (no files are deleted)">Disconnect</button></div>
       <div id="davOut"></div>
       <div class="scroll" id="davLists"></div>
     </div>

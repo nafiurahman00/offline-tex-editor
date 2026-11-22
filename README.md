@@ -144,6 +144,15 @@ TeX installation, so reports are welcome.
 
 ## What's new
 
+### 0.3.1 (not released yet)
+
+- **A new side bar**: one icon each for Files, Outline, Search, Git and WebDAV, instead of tab buttons cut short. The
+  number of changed files shows on the Git icon, and a dot on the WebDAV icon when there is something to sync
+- Files and folders in the list have icons; the buttons for a new file or folder, adding files, renaming and deleting
+  are icons too. Folder names keep their case
+- In the Search panel, match case, whole words and regular expressions are toggle buttons
+- In the dark theme, scroll bars and other browser controls are dark too
+
 ### 0.3.0 (2026-11-22)
 
 - **Share a project with your team over WebDAV** (Nextcloud, ownCloud, a NAS). Everyone edits their own copy and
@@ -213,8 +222,9 @@ another document of the same project (slides, a cover letter), pick it in ⚙.
 
 ## Sharing a project over WebDAV
 
-One person connects the project: in the **WebDAV** tab, enter the address of an empty folder on the server, your user
-name and your password, and press **Sync** to upload the project. Then share that folder with the team on the server.
+One person connects the project: in the **WebDAV** panel (the cloud icon on the left), enter the address of an empty
+folder on the server, your user name and your password, and press **Sync** to upload the project. Then share that
+folder with the team on the server.
 The address must start with `https://`. Nextcloud and ownCloud show the WebDAV address of your files in the Files
 app's settings (bottom left); it looks like `https://cloud.example.org/remote.php/dav/files/USER/`, and the
 folder's name goes at the end.
@@ -227,7 +237,7 @@ offline-tex-editor --root thesis --webdav https://cloud.example.org/remote.php/d
 
 This creates the `thesis` folder, downloads the project into it, and opens the editor, connected to the server.
 After that, `offline-tex-editor --root thesis` is enough: the connection is remembered (in `build/.editor-webdav/`).
-Someone who already has a copy of the project can connect it in the WebDAV tab instead; the first sync compares the
+Someone who already has a copy of the project can connect it in the WebDAV panel instead; the first sync compares the
 two, and keeps the server's version of any file that differs as a "(server copy)" next to theirs.
 
 - **Passwords** are kept only while the editor runs, and asked for again after a restart. To have yours remembered,

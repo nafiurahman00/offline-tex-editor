@@ -1,5 +1,5 @@
 // The Git panel: changes and diffs, stage, commit, push, pull (also when histories diverged), conflicts, history.
-import { $, el, app, api, post } from './util.js';
+import { $, el, app, api, post, icon } from './util.js';
 
 app.git = null;
 export function gitOut(text, cls, ...buttons) {
@@ -17,7 +17,7 @@ function renderGit(s) {
   for (const id of ['gitCommitBox', 'gitScroll']) $(id).hidden = !s.repo;
   if (!s.repo) {
     $('gitBranch').textContent = 'not a git repository'; $('gitSync').textContent = ''; $('gitLists').replaceChildren();
-    $('gitBadge').textContent = ''; $('gitState').hidden = true; $('gitConnect').hidden = true; $('gitRemoteBtns').hidden = true;
+    $('gitBadge').textContent = ''; $('gitBadge').parentElement.title = 'Git'; $('gitState').hidden = true; $('gitConnect').hidden = true; $('gitRemoteBtns').hidden = true;
     return;
   }
   $('gitConnect').hidden = s.remotes.length > 0;
@@ -25,7 +25,8 @@ function renderGit(s) {
   $('gitSyncBtn').textContent = 'Sync' + (s.ahead || s.behind ? ` ↑${s.ahead} ↓${s.behind}` : '');
   $('gitBranch').textContent = '⎇ ' + s.branch;
   $('gitSync').textContent = s.upstream ? `↑${s.ahead} ↓${s.behind}` : (s.remotes.length ? 'not pushed yet' : 'no remote');
-  $('gitBadge').textContent = s.files.length ? `(${s.files.length})` : '';
+  $('gitBadge').textContent = s.files.length > 99 ? '99+' : s.files.length || '';
+  $('gitBadge').parentElement.title = s.files.length ? `Git: ${s.files.length} changed file${s.files.length > 1 ? 's' : ''}` : 'Git';
   $('gitPush').textContent = s.ahead ? `Push (${s.ahead})` : 'Push';
   const conflicts = s.files.filter(f => f.conflict), staged = s.files.filter(f => f.staged), changed = s.files.filter(f => f.unstaged);
 
@@ -54,7 +55,8 @@ function renderGit(s) {
       const name = f.path.slice(f.path.lastIndexOf('/') + 1), dir = f.path.includes('/') ? f.path.slice(0, f.path.lastIndexOf('/')) : '';
       const btn = kind === 'conflict'
         ? el('button', { title: 'Mark resolved (stage it)', onclick: e => { e.stopPropagation(); gitOp('stage', { paths: [f.path] }); } }, 'Resolved')
-        : el('button', { title: kind === 'staged' ? 'Unstage' : 'Stage', onclick: e => { e.stopPropagation(); gitOp(kind === 'staged' ? 'unstage' : 'stage', { paths: [f.path] }); } }, kind === 'staged' ? '−' : '+');
+        : el('button', { className: 'icon', title: kind === 'staged' ? 'Unstage' : 'Stage',
+                         onclick: e => { e.stopPropagation(); gitOp(kind === 'staged' ? 'unstage' : 'stage', { paths: [f.path] }); } }, icon(kind === 'staged' ? 'minus' : 'plus'));
       const open = () => { const p = editorPath(f.path); if (kind === 'conflict' && p) app.openFile(p); else app.showDiff(f.path, kind === 'staged'); };
       rows.push(el('div', { className: 'gf', title: f.path + (f.orig ? ` (from ${f.orig})` : ''), onclick: open },
         el('span', { className: `st ${code}` }, code), el('span', { className: 'nm' }, name + ' ', el('small', {}, dir)), btn));

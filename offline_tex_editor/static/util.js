@@ -16,6 +16,15 @@ export function el(tag, props, ...children) {
   return e;
 }
 
+// An icon from the sprite at the top of index.html: icon('pencil') is <svg class="ic"><use href="#i-pencil"/></svg>.
+const SVG = 'http://www.w3.org/2000/svg';
+export function icon(name, cls) {
+  const s = document.createElementNS(SVG, 'svg'), u = document.createElementNS(SVG, 'use');
+  s.setAttribute('class', cls ? `ic ${cls}` : 'ic'); s.setAttribute('aria-hidden', 'true');
+  u.setAttribute('href', '#i-' + name); s.append(u);
+  return s;
+}
+
 export const store = {
   get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
