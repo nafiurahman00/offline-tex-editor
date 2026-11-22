@@ -498,7 +498,7 @@ def parse_multistatus(data, base):
         if prop is None:
             continue
         folder = prop.find(f'{DAV}resourcetype/{DAV}collection') is not None
-        version = (prop.findtext(DAV + 'getetag') or '').strip() or '{}|{}'.format(
+        version = entity_tag(prop.findtext(DAV + 'getetag')) or '{}|{}'.format(
             (prop.findtext(DAV + 'getlastmodified') or '').strip(), (prop.findtext(DAV + 'getcontentlength') or '').strip())
         out.append((rel, folder, version))
     return out
@@ -531,6 +531,13 @@ def scan_remote(client):
             elif syncable(rel):
                 files[rel] = version
     return files, folders
+
+
+def entity_tag(etag):
+    """An ETag as headers carry it, with its quotes. Some servers (WsgiDAV) list it without them; it would never
+    match the one a PUT returns, and could not be sent in If-Match."""
+    etag = (etag or '').strip()
+    return etag if not etag or etag.startswith(('"', 'W/')) else f'"{etag}"'
 
 
 def strong(version):
@@ -573,7 +580,7 @@ def upload(client, rel, data, version, folders):
     if status == 412:
         raise Changed(rel)
     expect(status, hdrs, rel, (200, 201, 204))
-    etag = (hdrs.get('ETag') or '').strip()
+    etag = entity_tag(hdrs.get('ETag'))
     return etag if strong(etag) else version_of(client, rel)
 
 

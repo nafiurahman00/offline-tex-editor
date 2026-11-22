@@ -48,7 +48,8 @@ class FakeDav:
     and the paths the helpers (write, read, ...) take are relative to it.
 
     extra: more entries, as (href, is_folder), for every Depth 1 PROPFIND reply: a hostile server.
-    put_etag: whether PUT replies carry the new ETag. hooks: {method: f}, f(path) is called before such a request is
+    put_etag: whether PUT replies carry the new ETag. bare_etags: list ETags without their quotes, as WsgiDAV does
+    (headers keep them). hooks: {method: f}, f(path) is called before such a request is
     answered, with the path under the user's folder (Thesis/...). digest: None for Basic, or the Digest algorithm to
     ask for ('MD5' or 'SHA-256'); both: offer Basic too, in the same header.
     """
@@ -59,7 +60,7 @@ class FakeDav:
         self.data, self.dirs, self.version = {}, {'', 'Thesis'}, 0  # path under the prefix -> (content, version)
         self.digest, self.both, self.stale = None, False, False
         self.realm, self.nonce, self.opaque = 'dav', 'nonce-1', 'opaque-1'
-        self.extra, self.put_etag, self.hooks, self.log = [], True, {}, []
+        self.extra, self.put_etag, self.bare_etags, self.hooks, self.log = [], True, False, {}, []
         self.lock = threading.Lock()
         fake = self
 
@@ -103,7 +104,8 @@ class FakeDav:
                 xml = ['<?xml version="1.0"?><d:multistatus xmlns:d="DAV:">']
                 for r in entries:
                     folder = r in fake.dirs
-                    xml.append(fake.response(quote(fake.prefix + r) + ('/' if folder else ''), folder, fake.etag(r)))
+                    etag = fake.etag(r).strip('"') if fake.bare_etags else fake.etag(r)
+                    xml.append(fake.response(quote(fake.prefix + r) + ('/' if folder else ''), folder, etag))
                 if self.headers.get('Depth') == '1':
                     xml += [fake.response(h, folder, '"x"') for h, folder in fake.extra]
                 xml.append('</d:multistatus>')
@@ -580,6 +582,15 @@ class Syncing(DavCase):
         self.connect(self.a)
         self.assertEqual(len(self.sync(self.a)['uploaded']), 4)
         self.assertFalse(any(self.sync(self.a).values()))
+
+    def test_server_that_lists_etags_without_quotes(self):
+        self.dav.bare_etags = True
+        self.both()
+        self.assertFalse(any(self.sync(self.a).values()))  # the ETags listed match the ones PUT returned
+        write(self.a, {'intro.tex': INTRO + 'From A.\n'})
+        self.dav.hooks['PUT'] = lambda path: path == 'Thesis/intro.tex' and self.dav.write('intro.tex', 'Teammate.\n')
+        self.assertEqual(self.sync(self.a)['retry'], ['intro.tex'])  # the upload was sent with If-Match
+        self.assertEqual(self.dav.text('intro.tex'), 'Teammate.\n')
 
     def test_hostile_server_paths(self):
         p = self.dav.prefix + 'Thesis/'
