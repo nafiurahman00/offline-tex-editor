@@ -144,7 +144,7 @@ TeX installation, so reports are welcome.
 
 ## What's new
 
-### 0.3.0 (2026-11-21)
+### 0.3.0 (2026-11-22)
 
 - **Share a project with your team over WebDAV** (Nextcloud, ownCloud, a NAS). Everyone edits their own copy and
   presses **Sync** in the new WebDAV tab. Edits to the same file are merged, and nothing on the server is
