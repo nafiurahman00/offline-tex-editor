@@ -1,4 +1,5 @@
-// The overlay over the editor that shows a git diff, a commit, or the source changes in the latest compile.
+// The overlay over the editor that shows a git diff, a commit, the source changes in the latest compile, or a file
+// that changed on the WebDAV server.
 import { $, el, app, api } from './util.js';
 
 let diffPath = null, showingChanges = false;
@@ -62,6 +63,12 @@ export async function showChanges() {
   open(title, false);
 }
 
+// A unified diff made elsewhere (the WebDAV panel's review of an incoming file).
+export function showDiffText(title, text) {
+  diffPath = null; showingChanges = false;
+  renderDiff(text); open(title, false);
+}
+
 export function closeDiff() { $('diffView').hidden = true; diffPath = null; showingChanges = false; app.cm.refresh(); }
 const refreshChangesIfOpen = () => { if (showingChanges && !$('diffView').hidden) showChanges(); };
 
@@ -69,4 +76,4 @@ $('changesBtn').onclick = showChanges;
 $('diffClose').onclick = closeDiff;
 $('diffOpen').onclick = () => { const p = editorPath(diffPath); closeDiff(); if (p) app.openFile(p); };
 
-Object.assign(app, { showDiff, showCommit, showChanges, closeDiff, refreshChangesIfOpen, isDiffOpen: () => !$('diffView').hidden });
+Object.assign(app, { showDiff, showCommit, showChanges, showDiffText, closeDiff, refreshChangesIfOpen, isDiffOpen: () => !$('diffView').hidden });

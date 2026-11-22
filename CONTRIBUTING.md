@@ -23,11 +23,13 @@ These keep the editor easy to install and audit:
 - **Standard library only** for Python. No runtime dependencies.
 - **No build step** for the front end: `index.html`, `static/app.css` and the ES modules in `static/` are served as
   they are. No inline scripts (the page's Content-Security-Policy forbids them).
-- **Fully offline.** No CDN, fonts, analytics or any other network access from the page. Third-party code goes in
+- **Fully offline.** No CDN, fonts, analytics or any other network access from the page (the server reaches the
+  network only for git remotes and the WebDAV folder the user connects). Third-party code goes in
   `offline_tex_editor/vendor/`, unmodified, with its license, version and SHA-256 recorded in
   [vendor/README.md](offline_tex_editor/vendor/README.md).
 - **Local and single-user.** Keep the request checks in `Handler.refused()`, the path checks in `safe()`,
-  `editable()` and `fs_target()` (server.py) and `inside()` (gitapi.py). Run external commands with argument
+  `editable()` and `fs_target()` (server.py), `inside()` (gitapi.py), and `valid_rel()`, `syncable()` and `inside()`
+  (webdav.py). Run external commands with argument
   lists, never a shell.
 
 ## Running and testing
@@ -38,8 +40,9 @@ python3 -m unittest discover -s tests -v
 node --test tests/*.test.mjs
 ```
 
-The Python tests start the real server on a free port against temporary projects. Tests that need `git`,
-`latexmk`/`synctex`, `xelatex`, `biber` or `texcount` are skipped when those are missing; CI installs them all.
+The Python tests start the real server on a free port against temporary projects; `tests/test_webdav.py` also runs
+a small WebDAV server of its own. Tests that need `git`, `latexmk`/`synctex`, `xelatex`, `biber` or `texcount` are
+skipped when those are missing; CI installs them all.
 
 Layout:
 
@@ -47,6 +50,8 @@ Layout:
 - `offline_tex_editor/project.py`: reading the sources (main document, outline, labels, bibliography, search)
 - `offline_tex_editor/latexlog.py`: LaTeX, BibTeX and biber logs, and the error hints
 - `offline_tex_editor/gitapi.py`: git operations (argument lists only, no shell; paths confined to the repository)
+- `offline_tex_editor/webdav.py`: WebDAV sync (an HTTP client from the standard library; paths from the server
+  confined to the project). Its docstring explains how a sync decides what to do with each file
 - `offline_tex_editor/index.html`, `static/`: the page and its ES modules. Each module sets up its part of the page
   and registers its public functions on the shared `app` object from `util.js` (`app.openFile`, `app.compile`, …);
   modules call each other through `app`. Pure logic (like `textindex.js`) is tested with `node --test`.

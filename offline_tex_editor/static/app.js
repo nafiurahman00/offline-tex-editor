@@ -9,6 +9,7 @@ import './compile.js';
 import './pdfview.js';
 import './panels.js';
 import './git.js';
+import './webdav.js';
 import './tools.js';
 
 app.project = project;
@@ -30,6 +31,7 @@ export function showTab(t) {
   }
   store.set('sideTab', t);
   if (t === 'git') app.gitRefresh(false);
+  if (t === 'dav') app.davOpen();
   if (t === 'outline') app.refreshOutline();
 }
 document.querySelectorAll('#sideTabs button').forEach(b => { b.onclick = () => showTab(b.dataset.tab); });
@@ -37,7 +39,7 @@ app.showTab = showTab;
 
 // ---------- keeping things fresh ----------
 const afterSave = debounce(() => {
-  app.gitSoon(); app.refreshCompletions();
+  app.gitSoon(); app.davSoon(); app.refreshCompletions();
   if (!$('outlinePane').hidden) app.refreshOutline();
 }, 600);
 app.onSaved = afterSave;
@@ -65,7 +67,7 @@ document.addEventListener('keydown', e => {
   await app.loadFiles();
   await app.restoreTabs(project.main);
   showTab(store.get('sideTab', 'files'));
-  app.refreshSettings(); app.refreshCompletions(); app.gitRefresh(false);
+  app.refreshSettings(); app.refreshCompletions(); app.gitRefresh(false); app.davRefresh();
   const s = await api('/api/status');
   if (s.running) setStatus('initial compile…', 'run');
   else if (s.finished) app.showResult(s);

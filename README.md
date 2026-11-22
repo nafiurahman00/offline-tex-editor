@@ -3,7 +3,8 @@
 A LaTeX editor that runs on your own machine and opens in your browser: edit, recompile with `latexmk`, and
 preview the PDF side by side with SyncTeX in both directions.
 
-Fully offline: no accounts, no cloud, no internet connection needed. It runs as a small server on your computer.
+Fully offline: no accounts, no cloud, no internet connection needed. It runs as a small server on your computer,
+and goes online only when you sync with GitHub or share the project with your team through a WebDAV folder.
 
 ![The editor with LaTeX source on the left and the compiled PDF on the right](https://offline-tex-editor.github.io/assets/editor.jpg)
 
@@ -63,7 +64,8 @@ found, pip put it in a folder that is not on your PATH (pip prints a warning nam
 - A TeX distribution with `latexmk` and `synctex`. TeX Live includes both (Debian/Ubuntu:
   `sudo apt install latexmk texlive-latex-recommended`; macOS: MacTeX). With MiKTeX on Windows, `latexmk` also
   needs Perl.
-- Optional: `git` for the Git panel, `biber` for biblatex, `texcount` for the word count
+- Optional: `git` for the Git panel (and for merging teammates' changes over WebDAV), `biber` for biblatex,
+  `texcount` for the word count
 - A browser from 2024 or later
 
 Developed and tested on Linux. It is expected to work on macOS; on Windows it has not yet been tried with a real
@@ -120,6 +122,26 @@ TeX installation, so reports are welcome.
 - Uses your own git and its credentials; the editor stores nothing. To push to GitHub over https, sign in once
   with the GitHub CLI (`gh auth login`, then `gh auth setup-git`) or set up another credential helper
 
+**Teams: WebDAV (Nextcloud, ownCloud)**
+- Share a project through a folder on a WebDAV server, such as Nextcloud, ownCloud or a NAS. Everyone edits their
+  own copy, offline, and presses **Sync**: what changed here is uploaded, and what teammates changed is downloaded.
+  It is not live co-editing: changes travel when someone syncs. See
+  [Sharing a project over WebDAV](#sharing-a-project-over-webdav)
+- When two people changed the same file, their edits are merged (with git, when it is installed). Edits to the same
+  lines get conflict markers, which the editor highlights, and the file is uploaded once they are resolved. Without
+  git, and for images, the server's version is saved next to yours as "name (server copy).ext"
+- Nothing on the server is overwritten by accident: an upload is refused when a teammate uploaded a newer version
+  in the meantime, and the next sync merges the two. Files deleted on the server go to `build/.editor-trash/` here
+- The panel checks the server every few minutes, so it shows when teammates changed something. A new or changed
+  `.latexmkrc` from the server (it runs as a program when you compile) is downloaded only after you review and
+  accept it
+- Syncs the sources, images and PDFs, and folders (empty ones too), never `build/` or `.git/`. A folder is deleted
+  on the other side only once it is empty, so files that are not synced (a teammate's notes, say) are never deleted
+  with it. It works alongside git: WebDAV shares the files, git keeps the history
+- Works on Windows and macOS, where `Fig.png` and `fig.png` are the same file: a rename that changes only the case is
+  followed on both sides, and two files on the server whose names differ only in case are left out, with a message
+  asking to rename one (on Linux they are synced, with a warning for teammates on the other systems)
+
 ## Options
 
 | Option | Default | Meaning |
@@ -134,6 +156,8 @@ TeX installation, so reports are welcome.
 | `--host ADDR` | `127.0.0.1` | bind address; the default is reachable only from your machine |
 | `--open` | off | open the editor in your browser |
 | `--no-initial-compile` | off | skip the compile at start-up |
+| `--webdav URL` | | get the project from this WebDAV folder first (or send it there), and stay connected to it |
+| `--webdav-user NAME` | | user name for `--webdav`; the password is asked for, unless it is in `~/.netrc` |
 | `--version` | | print the version |
 
 The PDF and auxiliary files go to `build/` in the project folder.
@@ -152,6 +176,35 @@ another document of the same project (slides, a cover letter), pick it in ⚙.
 4. otherwise pdfLaTeX.
 
 ⚙ shows which one is in effect and why.
+
+## Sharing a project over WebDAV
+
+One person connects the project: in the **WebDAV** tab, enter the address of an empty folder on the server, your user
+name and your password, and press **Sync** to upload the project. Then share that folder with the team on the server.
+The address must start with `https://`. Nextcloud and ownCloud show the WebDAV address of your files in the Files
+app's settings (bottom left); it looks like `https://cloud.example.org/remote.php/dav/files/USER/`, and the
+folder's name goes at the end.
+
+Each teammate then gets the project with the address of the shared folder in their own account:
+
+```bash
+offline-tex-editor --root thesis --webdav https://cloud.example.org/remote.php/dav/files/USER/Thesis/ --webdav-user USER --open
+```
+
+This creates the `thesis` folder, downloads the project into it, and opens the editor, connected to the server.
+After that, `offline-tex-editor --root thesis` is enough: the connection is remembered (in `build/.editor-webdav/`).
+Someone who already has a copy of the project can connect it in the WebDAV tab instead; the first sync compares the
+two, and keeps the server's version of any file that differs as a "(server copy)" next to theirs.
+
+- **Passwords** are kept only while the editor runs, and asked for again after a restart. To have yours remembered,
+  put it in `~/.netrc` (a line `machine cloud.example.org login USER password …`, as curl uses). If your account
+  uses two-factor sign-in, create an app password (Nextcloud: Settings, Security) and use that. Servers that ask for
+  Digest authentication instead of Basic work too.
+- **Conflicts.** Edits to different parts of a file are merged. When two people changed the same lines, the file
+  gets blocks like `<<<<<<< this computer` … `=======` … `>>>>>>> server`: keep the right text, delete the marker
+  lines, save, and sync again. A file that cannot be merged (or any file, without git) is listed under "Resolve
+  first" with its "(server copy)": keep what you need in your file, delete the copy, and sync again.
+- **Sync often**, at least before and after a working session: the sooner changes travel, the fewer conflicts.
 
 ## Keyboard shortcuts
 
@@ -172,8 +225,8 @@ another document of the same project (slides, a cover letter), pick it in ⚙.
 
 The editor is meant for one person on their own machine. It has no login, so:
 
-- **Keep the default `--host 127.0.0.1`.** The Git panel can push with your credentials, and anyone who can reach
-  the port can use it. Binding to another address prints a warning; put something with authentication in front of
+- **Keep the default `--host 127.0.0.1`.** The Git panel can push with your credentials and the WebDAV panel can
+  sync with your password, and anyone who can reach the port can use them. Binding to another address prints a warning; put something with authentication in front of
   it if you need remote access.
 - File operations stay inside the project folder, never touch `.git/` or `build/`, and only open or create
   editable source types (`.tex .bib .sty .cls .bst .md .txt .csv .py .sh` and a few more). Uploads are limited to
@@ -184,6 +237,11 @@ The editor is meant for one person on their own machine. It has no login, so:
   evaluated scripts. Images are served with a sandboxing policy, so an SVG cannot run scripts.
 - Git commands never prompt: a push that needs credentials you have not set up fails with git's message instead
   of hanging.
+- WebDAV passwords stay in memory (or in your `~/.netrc`): the editor never writes them to disk, sends them only over
+  https and only to the address you entered (it does not follow redirects). Files from the server get the same
+  checks as everything else: they stay inside the project folder, never go into `.git/` or `build/`, and are limited
+  to editable types, images and PDFs. A `.latexmkrc` from the server is downloaded only when you accept it. Still,
+  syncing a folder means trusting the people who can write to it, as with a shared git repository.
 - Compiling runs `latexmk`, which reads the project's `.latexmkrc` (Perl code); `--shell-escape` lets the document
   run programs. Only compile projects you trust, as with any LaTeX toolchain.
 

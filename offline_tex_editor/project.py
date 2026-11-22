@@ -4,6 +4,8 @@ paths they are given; the server checks paths before calling them.
 """
 import os
 import re
+import shutil
+import time
 from pathlib import Path
 
 EDITABLE = {'.tex', '.bib', '.sty', '.cls', '.bst', '.md', '.txt', '.csv', '.py', '.sh', '.tikz', '.bbx', '.cbx',
@@ -71,6 +73,19 @@ def read_source(p):
 
 def write_source(p, text, encoding='utf-8'):
     p.write_bytes(text.encode(encoding if encoding in ('utf-8', 'latin-1') else 'utf-8'))
+
+
+def trash(root, p, stamp=None):
+    """Move p (a file or folder inside root) to build/.editor-trash/<time>/, under the same path, so that a delete can
+    be undone. Returns where it went."""
+    base = root / 'build' / '.editor-trash' / (stamp or time.strftime('%Y%m%d-%H%M%S'))
+    rel = p.relative_to(root).as_posix()
+    dest, n = base / rel, 1
+    while dest.exists():
+        dest, n = base.with_name(f'{base.name}-{n}') / rel, n + 1
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    shutil.move(str(p), str(dest))
+    return dest
 
 
 def read_text(p, limit=MAX_SCAN):
