@@ -142,6 +142,40 @@ TeX installation, so reports are welcome.
   followed on both sides, and two files on the server whose names differ only in case are left out, with a message
   asking to rename one (on Linux they are synced, with a warning for teammates on the other systems)
 
+## What's new
+
+### 0.3.0 (2026-11-21)
+
+- **Share a project with your team over WebDAV** (Nextcloud, ownCloud, a NAS). Everyone edits their own copy and
+  presses **Sync** in the new WebDAV tab. Edits to the same file are merged, and nothing on the server is
+  overwritten by accident. A `.latexmkrc` from the server is downloaded only after you accept it. Teammates get the
+  project with `--webdav URL`. See [Sharing a project over WebDAV](#sharing-a-project-over-webdav)
+- WebDAV sign-in with Basic or Digest authentication; empty folders are synced too; renames that change only the case
+  are followed on Windows and macOS
+- The source code is on GitHub, and the editor runs straight from a clone with `./start.sh` or `.\start.cmd`
+
+### 0.2.3 (2026-11-19)
+
+- The PyPI page acknowledges the TeX trademark
+
+### 0.2.2 (2026-11-19)
+
+- **Sync** with GitHub in one click in the Git panel: pull, then push, with a choice of rebase or merge when both
+  sides have new commits. The panel fetches in the background and shows how far ahead or behind you are
+- Connect a project to a GitHub repository by pasting its address, or start a git repository for a project that has
+  none
+
+### 0.2.1 (2026-11-19)
+
+- Find and replace in the open file (Ctrl/Cmd+F; Ctrl+H or Cmd+Option+F), with case, whole-word and
+  regular-expression options, and Replace all as one undo step
+- Replacing in all files keeps backslashes as typed, so `\textbf{$1}` works
+- Errors that LaTeX prints without a line, such as a missing package, are listed with a hint
+
+### 0.2.0 (2026-11-19)
+
+- First release on PyPI: `pip install offline-tex-editor`. See [Features](#features) for what it does
+
 ## Options
 
 | Option | Default | Meaning |
