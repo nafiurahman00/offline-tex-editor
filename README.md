@@ -144,6 +144,11 @@ TeX installation, so reports are welcome.
 
 ## What's new
 
+### 0.3.2 (not released yet)
+
+- A missing or extra brace, a missing `\begin{document}` or a command that belongs in the preamble is shown in
+  the error list with its hint, instead of the compile failing with no errors listed
+
 ### 0.3.1 (2026-11-22)
 
 - **A new side bar**: one icon each for Files, Outline, Search, Git and WebDAV, instead of tab buttons cut short. The
