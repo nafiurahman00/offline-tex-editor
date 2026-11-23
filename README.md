@@ -144,7 +144,7 @@ TeX installation, so reports are welcome.
 
 ## What's new
 
-### 0.3.2 (not released yet)
+### 0.3.2 (2026-11-23)
 
 - A missing or extra brace, a missing `\begin{document}` or a command that belongs in the preamble is shown in
   the error list with its hint, instead of the compile failing with no errors listed
