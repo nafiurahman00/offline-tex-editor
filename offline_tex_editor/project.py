@@ -211,14 +211,16 @@ INCLUDE = re.compile(r'\\(input|include|subfile|import|subimport|inputfrom|inclu
                      r'\*?\s*\{([^}]*)\}(?:\s*\{([^}]*)\})?')
 
 
-def resolve_input(root, here, cmd, a, b):
-    """The project file an \\input-like command reads, relative to root, or None."""
+def resolve_input(root, here, cmd, a, b, main_dir=None):
+    """The project file an \\input-like command reads, relative to root, or None. main_dir: the main file's folder,
+    which TeX runs in (default: root)."""
+    main_dir = main_dir or root
     if cmd in ('import', 'inputfrom', 'includefrom'):
-        bases, name = [root / a.strip()], b
+        bases, name = [main_dir / a.strip()], b
     elif cmd in ('subimport', 'subinputfrom', 'subincludefrom'):
         bases, name = [here / a.strip()], b
     else:   # \input and \include are relative to the main file's folder; also try the including file's folder
-        bases, name = [root, here], a
+        bases, name = [main_dir, here], a
     if name is None:
         return None
     name = name.strip().strip('"')
@@ -237,6 +239,7 @@ def outline(root, main):
     """Sectioning commands in document order, following \\input, \\include, \\subfile and \\import from the main
     file: ({'level', 'title', 'file', 'line'} list, list of \\include arguments, as written)."""
     entries, includes, seen = [], [], set()
+    main_dir = (root / main).parent
 
     def visit(rel, depth):
         if rel in seen or depth > 20:
@@ -262,7 +265,7 @@ def outline(root, main):
                 else:
                     if m.group(1) == 'include':
                         includes.append(m.group(2).strip())
-                    target = resolve_input(root, here, m.group(1), m.group(2), m.group(3))
+                    target = resolve_input(root, here, m.group(1), m.group(2), m.group(3), main_dir)
                     if target and target.endswith('.tex'):
                         visit(target, depth + 1)
 

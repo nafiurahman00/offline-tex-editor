@@ -214,7 +214,9 @@ The PDF and auxiliary files go to `build/` in the project folder.
 
 **Main document.** `--main` if given; otherwise `main.tex`; otherwise the `.tex` file with `\documentclass` that
 looks most like a main file. A `% !TEX root = ../thesis.tex` comment in the chosen file is followed. To work on
-another document of the same project (slides, a cover letter), pick it in ⚙.
+another document of the same project (slides, a cover letter), pick it in ⚙. LaTeX runs in the main document's
+folder, so a main document in a subfolder (such as `paper/main.tex`) finds the files next to it; the PDF still goes
+to `build/` in the project folder.
 
 **Engine.** In this order:
 1. `--engine` on the command line;
