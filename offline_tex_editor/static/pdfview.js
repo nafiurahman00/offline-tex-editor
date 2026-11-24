@@ -1,6 +1,6 @@
-// The PDF preview: rendering with a text layer, find in PDF, SyncTeX both ways, page number, zoom, splitter.
+// The PDF preview: rendering with a text layer, find in PDF, SyncTeX both ways, page number, zoom, splitters.
 import * as pdfjsLib from '../vendor/pdfjs/pdf.min.mjs';
-import { $, el, app, state, store, api, setStatus } from './util.js';
+import { $, el, app, state, store, api, setStatus, debounce } from './util.js';
 import { normalize, indexText, findAll, matchSpans } from './textindex.js';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdfjs/pdf.worker.min.mjs', import.meta.url).href;
@@ -107,7 +107,10 @@ export async function renderPdfPage(url) {
 
 $('zoomIn').onclick = () => { zoom = Math.min(4, zoom * 1.15); store.set('zoom', zoom); loadPdf(); };
 $('zoomOut').onclick = () => { zoom = Math.max(0.3, zoom / 1.15); store.set('zoom', zoom); loadPdf(); };
-let resizeT; window.addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(loadPdf, 300); });
+const refitPdf = debounce(() => {
+  if (pdf.rendering) refitPdf(); else loadPdf();
+}, 300);
+window.addEventListener('resize', refitPdf);
 
 // ---------- page number ----------
 const pageEls = () => view ? view.els : [];
@@ -152,17 +155,72 @@ export async function syncToPdf() {
 }
 $('syncBtn').onclick = syncToPdf;
 
-// ---------- splitter ----------
+// ---------- splitters ----------
 (() => {
-  const main = document.querySelector('main'); let drag = false;
-  const side = () => $('side').getBoundingClientRect().width;
-  const setCols = f => { main.style.gridTemplateColumns = `${side()}px ${f}fr 6px ${1 - f}fr`; };
-  const saved = store.get('split', null); if (saved) setCols(saved);
-  $('split').onmousedown = () => { drag = true; document.body.style.userSelect = 'none'; };
-  window.addEventListener('mouseup', () => { if (drag) { drag = false; document.body.style.userSelect = ''; loadPdf(); } });
-  window.addEventListener('mousemove', e => { if (!drag) return;
-    const r = main.getBoundingClientRect(), s = side(), f = Math.min(.8, Math.max(.2, (e.clientX - r.left - s) / (r.width - s - 6)));
-    setCols(f); store.set('split', f); app.cm.refresh(); });
+  const main = document.querySelector('main'), side = $('side'), sideSplit = $('sideSplit');
+  const editor = $('editorWrap'), split = $('split');
+  const minSide = 200, savedSide = store.get('sidebarWidth', 264);
+  let preferredSide = Number.isFinite(savedSide) ? savedSide : 264;
+  function setSideWidth(width) {
+    const max = Math.max(minSide, Math.floor(main.clientWidth * .45));
+    const clamped = Math.min(max, Math.max(minSide, Math.round(width)));
+    main.style.setProperty('--side-width', `${clamped}px`);
+    sideSplit.setAttribute('aria-valuemin', minSide);
+    sideSplit.setAttribute('aria-valuemax', max);
+    sideSplit.setAttribute('aria-valuenow', clamped);
+    return clamped;
+  }
+  setSideWidth(preferredSide);
+  window.addEventListener('resize', () => setSideWidth(preferredSide));
+
+  function resizeSide(width) {
+    preferredSide = setSideWidth(width);
+    store.set('sidebarWidth', preferredSide);
+  }
+  function setEditorShare(value) {
+    const share = Math.min(.8, Math.max(.2, value));
+    main.style.setProperty('--editor-fr', `${share}fr`);
+    main.style.setProperty('--pdf-fr', `${1 - share}fr`);
+    return share;
+  }
+  const savedSplit = store.get('split', .5);
+  setEditorShare(Number.isFinite(savedSplit) ? savedSplit : .5);
+
+  let activePointer = null;
+  function dragDivider(handle, resize) {
+    let offset;
+    handle.onpointerdown = e => {
+      if (!e.isPrimary || e.button !== 0 || activePointer !== null) return;
+      offset = e.clientX - handle.getBoundingClientRect().left;
+      handle.setPointerCapture(e.pointerId);
+      activePointer = e.pointerId;
+      document.body.style.userSelect = 'none';
+    };
+    handle.onpointermove = e => {
+      if (e.pointerId !== activePointer) return;
+      resize(e.clientX - offset);
+      app.cm.refresh();
+    };
+    handle.onlostpointercapture = e => {
+      if (e.pointerId !== activePointer) return;
+      activePointer = null;
+      document.body.style.userSelect = '';
+      refitPdf();
+    };
+  }
+  dragDivider(sideSplit, x => resizeSide(x - main.getBoundingClientRect().left));
+  dragDivider(split, x => {
+    const left = editor.getBoundingClientRect().left;
+    const available = main.getBoundingClientRect().right - left - split.offsetWidth;
+    store.set('split', setEditorShare((x - left) / available));
+  });
+  sideSplit.onkeydown = e => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    e.preventDefault();
+    resizeSide(side.getBoundingClientRect().width + (e.key === 'ArrowLeft' ? -16 : 16));
+    app.cm.refresh();
+    refitPdf();
+  };
 })();
 
 // ---------- find in PDF ----------
