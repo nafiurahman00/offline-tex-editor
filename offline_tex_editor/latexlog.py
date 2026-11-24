@@ -4,8 +4,9 @@ common ones. Pure functions over log text, so they are easy to test.
 import re
 from pathlib import Path, PureWindowsPath
 
-# "file:line: message", as written with -file-line-error. The path may start with a Windows drive letter.
-ERR = re.compile(r'^((?:[A-Za-z]:)?[^:\n]*?\.[A-Za-z0-9]{1,8}):(\d+): (.*)$')
+# "file:line: message", as written with -file-line-error. The path may start with a Windows drive letter. Lines that
+# start with white space are not errors: a Lua stack traceback lists its "\tfile.lua:49: in ..." entries that way.
+ERR = re.compile(r'^(?!\s)((?:[A-Za-z]:)?[^:\n]*?\.[A-Za-z0-9]{1,8}):(\d+): (.*)$')
 WARN = re.compile(r'(?:LaTeX|Package [\w-]+|Class [\w-]+) Warning: (.*?)(?: on input line (\d+))?\.?$')
 ENGINE_ERR = re.compile(r'!\w*TeX error\b')   # the engine's own errors, such as "!pdfTeX error:"
 WARN_KEYWORDS = ('undefined', 'Citation', 'Reference', 'multiply', 'could not be found', 'Rerun to get')
@@ -97,6 +98,8 @@ def relpath(name, root, cwd=None):
     """A log's file name as a project-relative POSIX path, or (name, True) when it is outside the project. A relative
     name is relative to cwd, the folder TeX ran in (default: root)."""
     name = name[2:] if name.startswith('./') else name
+    if name.startswith('...'):   # Lua shortens long source names to their end, as in "...tex/latex/x/x.lua"
+        return name, True
     if root is None:
         return name, False
     p = Path(name)
