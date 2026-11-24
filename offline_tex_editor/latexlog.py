@@ -199,7 +199,13 @@ def parse_blg(text):
         if m:
             msg = line[:m.start()].strip() or (lines[i - 1].strip() if i else '')
             ctx = ' '.join(l.strip(' :') for l in lines[i + 1:i + 3] if l.strip(' :'))
-            add('error', 'BibTeX', msg, m.group(2).strip(), int(m.group(1)), ctx)
+            file, ln = m.group(2).strip(), int(m.group(1))
+            if file.endswith('.aux'):   # LaTeX writes the .aux into build/; the cause is in the \bibliography... line
+                file = ln = None
+            if errors and errors[-1]['message'] == f'BibTeX: {msg}':
+                errors[-1].update(file=file, line=ln, context=ctx)   # "I couldn't open ..." just above
+            else:
+                add('error', 'BibTeX', msg, file, ln, ctx)
             continue
         m = re.match(r'Warning--(.*)$', line)
         if m:
