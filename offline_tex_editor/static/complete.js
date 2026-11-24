@@ -1,5 +1,6 @@
 // Autocompletion: \ref labels, \cite keys, environments, file names and commands (built-in and the project's own).
 import { el, app, project, api } from './util.js';
+import { fromMain } from './paths.js';
 
 // [name, number of {} arguments]
 const BUILTIN = [
@@ -52,12 +53,13 @@ function context(cm) {
   if ((m = before.match(/\\(begin|end)\{([a-zA-Z*]*)$/))) return at(m[1], m[2]);
   if ((m = before.match(/\\(input|include|subfile|includegraphics|bibliography|addbibresource|includeonly)(?:\[[^\]]*\])?\{([^{}]*)$/))) {
     const cmd = m[1], token = cmd === 'bibliography' || cmd === 'includeonly' ? last(m[2]) : m[2];
+    const rel = f => fromMain(f, project.main);   // LaTeX runs in the main document's folder
     let files;
-    if (cmd === 'includegraphics') files = project.assets.filter(f => IMAGE.test(f));
-    else if (cmd === 'bibliography') files = project.files.filter(f => f.endsWith('.bib')).map(f => f.slice(0, -4));
-    else if (cmd === 'addbibresource') files = project.files.filter(f => f.endsWith('.bib'));
-    else if (cmd === 'input') files = project.files.filter(f => /\.(tex|tikz)$/.test(f));
-    else files = project.files.filter(f => f.endsWith('.tex')).map(f => f.slice(0, -4));
+    if (cmd === 'includegraphics') files = project.assets.filter(f => IMAGE.test(f)).map(rel);
+    else if (cmd === 'bibliography') files = project.files.filter(f => f.endsWith('.bib')).map(f => rel(f).slice(0, -4));
+    else if (cmd === 'addbibresource') files = project.files.filter(f => f.endsWith('.bib')).map(rel);
+    else if (cmd === 'input') files = project.files.filter(f => /\.(tex|tikz)$/.test(f)).map(rel);
+    else files = project.files.filter(f => f.endsWith('.tex')).map(f => rel(f).slice(0, -4));
     return at('file', token, { files });
   }
   if ((m = before.match(/\\([a-zA-Z@]*\*?)$/))) return at('cmd', m[1]);
