@@ -59,7 +59,9 @@ function context(cm) {
     else if (cmd === 'bibliography') files = project.files.filter(f => f.endsWith('.bib')).map(f => rel(f).slice(0, -4));
     else if (cmd === 'addbibresource') files = project.files.filter(f => f.endsWith('.bib')).map(rel);
     else if (cmd === 'input') files = project.files.filter(f => /\.(tex|tikz)$/.test(f)).map(rel);
-    else files = project.files.filter(f => f.endsWith('.tex')).map(f => rel(f).slice(0, -4));
+    else files = project.files.filter(f => f.endsWith('.tex')).map(f => rel(f).slice(0, -4))
+      // \include writes an .aux under the name it is given, and TeX Live refuses to write to ../ (openout_any = p)
+      .filter(f => cmd === 'subfile' || !f.startsWith('../'));
     return at('file', token, { files });
   }
   if ((m = before.match(/\\([a-zA-Z@]*\*?)$/))) return at('cmd', m[1]);
