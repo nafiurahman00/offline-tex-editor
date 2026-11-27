@@ -1,18 +1,25 @@
 // The file list: tree, filter, new/rename/delete, selecting several (download or delete them together), upload
 // (button or drag and drop), image and PDF previews.
 import { $, el, app, state, project, store, pkey, api, post, setStatus, dirOf, baseName, icon, confirmClick } from './util.js';
-import { rangeBetween, topmost, forDeleting } from './selection.js';
+import { rangeBetween, topmost, forDeleting, deletionReport, renameSelection, stillSelected } from './selection.js';
+import { currentFolder, followRename, stillListed } from './folders.js';
 
 const IMAGE = /\.(png|jpe?g|gif|svg|webp|bmp)$/i;
 const fileIcon = p => icon(IMAGE.test(p) ? 'image' : /\.bib$/i.test(p) ? 'bib' : /\.(tex|ltx|sty|cls)$/i.test(p) ? 'tex' : 'file');
 let selected = new Set(), anchor = null;   // selected files and folders; anchor: where a Shift+click range starts
+// The folder that Add files, New file and New folder work in (see folders.js): set by a plain click on a row, never
+// by Ctrl/Shift+click, so selecting several does not move it. It follows renames and is forgotten when what was
+// clicked is gone.
+let clicked = null;   // { path, dir } of the last row clicked
+const currentDir = () => currentFolder(clicked, state.current);
 
 export async function loadFiles() {
   const r = await api('/api/files');
   if (!r.ok) return setStatus('cannot list files: ' + (r.error || r.status), 'err');
   Object.assign(project, { root: r.root, main: r.main, files: r.files || [], assets: r.assets || [], dirs: r.dirs || [] });
-  const known = new Set([...project.files, ...project.assets, ...project.dirs]);
-  selected = new Set([...selected].filter(p => known.has(p)));
+  selected = new Set(stillSelected([...selected], new Set([...project.files, ...project.assets, ...project.dirs])));
+  if (anchor && !selected.has(anchor) && !project.files.includes(anchor) && !project.dirs.includes(anchor)) anchor = null;
+  clicked = stillListed(clicked, [...project.files, ...project.assets], project.dirs);
   $('mainDoc').textContent = project.main;
   renderFiles();
 }
@@ -51,7 +58,7 @@ export function renderFiles() {
       const d = path ? `${path}/${name}` : name, child = n.dirs.get(name);
       if (q && !hasMatch(child, q)) continue;
       const open = q || !collapsed.has(d);
-      const head = el('div', { className: 'dir toggle' + (open ? ' open' : '') + sel(d), title: d, dataset: { dir: d }, onclick: e => pick(e, d, () => {
+      const head = el('div', { className: 'dir toggle' + (open ? ' open' : '') + sel(d) + (clicked?.dir && clicked.path === d ? ' cur' : ''), title: d, dataset: { dir: d }, onclick: e => pick(e, d, () => {
         const s = new Set(store.get(pkey('collapsed'), [])); s.has(d) ? s.delete(d) : s.add(d); store.set(pkey('collapsed'), [...s]); renderFiles();
       }) }, icon('chevron', 'chev'), icon('folder', 'fold'), el('span', { className: 'nm' }, name), actions(d, true));
       head.style.paddingLeft = (6 + depth * 14) + 'px';
@@ -64,6 +71,8 @@ export function renderFiles() {
   $('selBar').hidden = selected.size < 2;
   $('selCount').textContent = `${selected.size} selected`;
 }
+// a click below the rows makes the project folder the current folder again
+$('files').addEventListener('click', e => { if (e.target === $('files')) { clicked = { path: '', dir: true }; renderFiles(); } });
 const hasMatch = (n, q) => n.files.some(f => f.path.toLowerCase().includes(q)) || [...n.dirs.values()].some(c => hasMatch(c, q));
 $('filter').oninput = renderFiles;
 
@@ -108,7 +117,8 @@ function pick(e, path, open) {
   } else if (e.shiftKey) {
     selected = new Set(rangeBetween(shown(), anchor ?? state.current, path));
   } else {
-    if (!(selected.size > 1 && project.dirs.includes(path))) { selected = new Set([path]); anchor = path; }
+    clicked = { path, dir: project.dirs.includes(path) };   // the current folder follows plain clicks only
+    if (!(selected.size > 1 && clicked.dir)) { selected = new Set([path]); anchor = path; }
     renderFiles();
     return open();
   }
@@ -119,19 +129,23 @@ $('selDownload').onclick = () => {
   const paths = topmost([...selected]);
   el('a', { href: '/api/export?paths=' + encodeURIComponent(JSON.stringify(paths)), download: `${folderName()}-files.zip` }).click();
 };
-$('selDelete').onclick = () => confirmClick($('selDelete'), `Delete ${selected.size}?`, async () => {
-  const { remove, keep } = forDeleting([...selected], project.main);
-  const failed = keep.map(p => `${p}: ${p === project.main ? 'the main document' : 'holds the main document'}`);
-  let moved = 0;
-  for (const path of remove) {   // a folder takes the files in it along
-    const r = await post('/api/fs/delete', { path });
-    if (r.ok) { moved++; app.dropDoc(path); } else failed.push(`${path}: ${r.error}`);
-  }
-  selected = new Set(); anchor = null;
-  await loadFiles(); app.filesChanged?.();
-  const done = `moved ${moved} item${moved === 1 ? '' : 's'} to build/.editor-trash`;
-  if (failed.length) setStatus(`${done}; not deleted: ${failed.join('; ')}`, 'err'); else setStatus(done, 'ok');
-});
+// open files with unsaved changes (the tabs list the open files)
+const unsavedPaths = () => [...document.querySelectorAll('#tabs .tab')].map(t => t.dataset.path).filter(p => app.isDirty(p));
+$('selDelete').onclick = () => {
+  const n = selected.size, plan = forDeleting([...selected], project.main, unsavedPaths());
+  const held = plan.skip.length ? ` (skips ${plan.skip.length} unsaved)` : '';
+  confirmClick($('selDelete'), `Delete ${n}?${held}`, async () => {
+    const { remove, keep, skip } = forDeleting([...selected], project.main, unsavedPaths());   // as they are now
+    const deleted = [], failed = [];
+    for (const path of remove) {   // a folder takes the files in it along; one failing does not stop the others
+      const r = await post('/api/fs/delete', { path });
+      if (r.ok) { deleted.push(path); app.dropDoc(path); } else failed.push({ path, error: r.error || r.status });
+    }
+    selected = new Set(); anchor = null;
+    await loadFiles(); app.filesChanged?.();
+    setStatus(deletionReport({ deleted, keep, skip, failed }, project.main), keep.length || skip.length || failed.length ? 'err' : 'ok');
+  });
+};
 $('selClear').onclick = () => { selected = new Set(); anchor = null; renderFiles(); };
 
 // ---------- new / rename form ----------
@@ -140,7 +154,7 @@ function openForm(kind, value) {
   form = { kind, from: kind === 'rename' ? value : null };
   $('fsForm').hidden = false;
   const input = $('fsInput');
-  input.value = value || (state.current && dirOf(state.current) ? dirOf(state.current) + '/' : '');
+  input.value = value || (currentDir() ? currentDir() + '/' : '');
   $('fsHint').textContent = kind === 'rename' ? 'New path (Enter to rename, Esc to cancel)'
     : kind === 'folder' ? 'Folder path (Enter to create, Esc to cancel)' : 'File path, e.g. chapters/intro.tex (Enter to create)';
   input.focus();
@@ -160,6 +174,9 @@ $('fsInput').addEventListener('keydown', async e => {
     const r = await post('/api/fs/rename', { from: form.from, to: path });
     if (!r.ok) return ($('fsHint').textContent = r.error);
     app.renameDoc(form.from, r.path);
+    clicked = followRename(clicked, form.from, r.path);
+    selected = new Set(renameSelection([...selected], form.from, r.path));
+    if (anchor) anchor = renameSelection([anchor], form.from, r.path)[0];
     if (r.main !== project.main) { project.main = r.main; app.refreshSettings?.(); }
     closeForm(); await loadFiles(); app.filesChanged?.();
     setStatus(`renamed to ${r.path}`, 'ok');
@@ -196,9 +213,13 @@ async function upload(files, dir) {
   if (n) { await loadFiles(); app.filesChanged?.(); setStatus(`added ${n} file${n > 1 ? 's' : ''}${dir ? ' to ' + dir : ''}`, 'ok'); }
 }
 $('uploadBtn').onclick = () => $('uploadInput').click();
+// the tooltip names the folder at the time it is shown (opening a file from a tab changes it too)
+const uploadTitle = () => { $('uploadBtn').title = `Add files to ${currentDir() || 'the project folder'} (or drop them on a folder)`; };
+$('uploadBtn').addEventListener('pointerenter', uploadTitle);
+$('uploadBtn').addEventListener('focus', uploadTitle);
 $('uploadInput').onchange = async () => {
   const files = [...$('uploadInput').files]; $('uploadInput').value = '';
-  await upload(files, state.current ? dirOf(state.current) : '');
+  await upload(files, currentDir());
 };
 const hasFiles = e => [...(e.dataTransfer?.types || [])].includes('Files');
 $('files').addEventListener('dragover', e => {

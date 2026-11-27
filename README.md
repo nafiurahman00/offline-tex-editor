@@ -87,8 +87,8 @@ TeX installation, so reports are welcome.
 
 **The project**
 - File tree with images and PDFs; create, rename, move and delete files and folders (deleted files go to
-  `build/.editor-trash/`, so mistakes can be undone); add files with a button or by dropping them on a folder;
-  preview images and PDF figures
+  `build/.editor-trash/`, so mistakes can be undone); add files with a button (into the folder you clicked last)
+  or by dropping them on a folder; preview images and PDF figures
 - Select several files and folders with Ctrl/Cmd+click or Shift+click, then download them as a .zip or delete them
   together
 - Search and replace in all files, with the same options (Ctrl/Cmd+Shift+F). With regular expressions, `$1`
