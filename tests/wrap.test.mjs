@@ -45,3 +45,29 @@ test('does not unwrap braces that belong to something else', () => {
   assert.equal(apply('', '\\textbf{50\\}', ''), '\\textbf{[\\textbf{50\\}]}');
   assert.equal(apply('', '\\textbf{50\\%}', ''), '[50\\%]');
 });
+
+test('nested commands: the command is found through the ones inside it', () => {
+  // x selected in \textbf{\textit{x}}: Ctrl+B takes the bold off, Ctrl+I the italics
+  assert.equal(apply('a \\textbf{\\textit{', 'x', '}} b'), 'a \\textit{[x]} b');
+  assert.equal(apply('a \\textbf{\\textit{', 'x', '}} b', 'textit'), 'a \\textbf{[x]} b');
+  assert.equal(apply('\\textbf{\\emph{\\textsc{', 'x', '}}}'), '\\emph{\\textsc{[x]}}');
+  // not when the selection is only part of the inner group
+  assert.equal(apply('\\textbf{\\textit{a ', 'x', '}}'), '\\textbf{\\textit{a \\textbf{[x]}}}');
+  // wrapping inside another command
+  assert.equal(apply('\\emph{', 'x', '}'), '\\emph{\\textbf{[x]}}');
+});
+
+test('multiline selections', () => {
+  assert.equal(apply('a ', 'one\ntwo', ' b'), 'a \\textbf{[one\ntwo]} b');
+  assert.equal(apply('a \\textbf{', 'one\ntwo', '} b'), 'a [one\ntwo] b');
+  assert.equal(apply('', '\\textbf{one\ntwo}', ''), '[one\ntwo]');
+});
+
+test('several paragraphs are wrapped one by one, since \\textbf cannot span a blank line', () => {
+  assert.equal(apply('', 'first\n\nsecond', ''), '[\\textbf{first}\n\n\\textbf{second}]');
+  assert.equal(apply('', '\\textbf{first}\n\n\\textbf{second}', ''), '[first\n\nsecond]');
+  // a paragraph that is bold already stays as it is; the others are made bold too
+  assert.equal(apply('', '\\textbf{first}\n  \nsecond\n\n\nthird', ''), '[\\textbf{first}\n  \n\\textbf{second}\n\n\n\\textbf{third}]');
+  // a blank line at the end of the selection is left out
+  assert.equal(apply('', 'first\n\n', ''), '[\\textbf{first}\n\n]');
+});
