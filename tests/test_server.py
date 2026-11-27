@@ -16,6 +16,7 @@ import tempfile
 import threading
 import time
 import unittest
+import urllib.parse
 import zipfile
 from pathlib import Path
 
@@ -564,6 +565,17 @@ class FileOperations(ServerCase):
                                                     'sections/introduction.tex'])
             self.assertEqual(z.read('main.bbl'), b'\\begin{thebibliography}{1}\n')
             self.assertEqual(z.read('figures/p.png'), b'\x89PNG')
+
+    def test_export_selected_files(self):
+        write(self.root, {'figures/a.png': b'A', 'figures/sub/b.png': b'B', 'figures/.hidden': 'x',
+                          'build/main.bbl': 'bbl'})
+        paths = json.dumps(['refs.bib', 'figures'])
+        code, data, _ = self.get('/api/export?paths=' + urllib.parse.quote(paths))
+        self.assertEqual(code, 200, data)
+        with zipfile.ZipFile(io.BytesIO(data)) as z:   # the folder with what is in it, and no .bbl
+            self.assertEqual(sorted(z.namelist()), ['figures/a.png', 'figures/sub/b.png', 'refs.bib'])
+        self.assertEqual(self.get('/api/export?paths=' + urllib.parse.quote('["../outside"]'))[0], 403)
+        self.assertEqual(self.get('/api/export?paths=' + urllib.parse.quote('{"a": 1}'))[0], 400)
 
 
 class SearchApi(ServerCase):

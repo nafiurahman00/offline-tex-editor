@@ -89,6 +89,8 @@ TeX installation, so reports are welcome.
 - File tree with images and PDFs; create, rename, move and delete files and folders (deleted files go to
   `build/.editor-trash/`, so mistakes can be undone); add files with a button or by dropping them on a folder;
   preview images and PDF figures
+- Select several files and folders with Ctrl/Cmd+click or Shift+click, then download them as a .zip or delete them
+  together
 - Search and replace in all files, with the same options (Ctrl/Cmd+Shift+F). With regular expressions, `$1`
   in the replacement inserts the first group (`$&` the whole match); backslashes are kept as typed, so
   `\textbf{$1}` works

@@ -563,13 +563,18 @@ def word_count():
 
 # ---------- export ----------
 
-def export_zip():
+def export_zip(paths=None):
     """The project as a .zip to send to arXiv or a journal: its files, without build/, .git/ or other hidden files
     and folders (.latexmkrc is kept), and with the bibliography made in the last compile (build/<job>.bbl) next to the
-    main document, named after it, which is where arXiv looks for it."""
+    main document, named after it, which is where arXiv looks for it.
+    With `paths` (files and folders, relative to ROOT), only those files and the files in those folders, for
+    downloading the files selected in the file list."""
+    picked = None if paths is None else [rel_of(safe(rel)) for rel in paths]
     buf, names = io.BytesIO(), set()
     with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as z:
         for p, rel in project.walk(ROOT):
+            if picked is not None and not any(rel == r or rel.startswith(r + '/') for r in picked):
+                continue
             hidden = any(part.startswith('.') for part in rel.split('/')) and rel not in project.EDITABLE_NAMES
             real = p.resolve()
             if hidden or ROOT not in real.parents:  # a link to a file outside the project is left out
@@ -577,7 +582,7 @@ def export_zip():
             z.write(real, rel)
             names.add(rel)
         bbl, name = ROOT / 'build' / f'{JOB}.bbl', Path(MAIN).with_suffix('.bbl').as_posix()
-        if bbl.is_file() and name not in names:
+        if picked is None and bbl.is_file() and name not in names:
             z.write(bbl, name)
     return buf.getvalue()
 
@@ -864,7 +869,10 @@ class Handler(BaseHTTPRequestHandler):
                     return self.send(409, {'error': 'the PDF is still being written'})
                 return self.send(200, (ROOT / 'build' / f'{JOB}.pdf').read_bytes(), 'application/pdf')
             if u.path == '/api/export':
-                return self.send(200, export_zip(), 'application/zip')
+                paths = json.loads(q['paths']) if 'paths' in q else None
+                if paths is not None and not (isinstance(paths, list) and all(isinstance(x, str) for x in paths)):
+                    raise UserError('paths must be a list of file and folder names')
+                return self.send(200, export_zip(paths), 'application/zip')
             if u.path == '/api/raw':
                 p = asset(q['path'])
                 return self.send(200, p.read_bytes(), TYPES.get(p.suffix.lower(), 'application/octet-stream'),

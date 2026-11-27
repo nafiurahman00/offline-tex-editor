@@ -1,13 +1,18 @@
-// The file list: tree, filter, new/rename/delete, upload (button or drag and drop), image and PDF previews.
-import { $, el, app, state, project, store, pkey, api, post, setStatus, dirOf, baseName, icon } from './util.js';
+// The file list: tree, filter, new/rename/delete, selecting several (download or delete them together), upload
+// (button or drag and drop), image and PDF previews.
+import { $, el, app, state, project, store, pkey, api, post, setStatus, dirOf, baseName, icon, confirmClick } from './util.js';
+import { rangeBetween, topmost } from './selection.js';
 
 const IMAGE = /\.(png|jpe?g|gif|svg|webp|bmp)$/i;
 const fileIcon = p => icon(IMAGE.test(p) ? 'image' : /\.bib$/i.test(p) ? 'bib' : /\.(tex|ltx|sty|cls)$/i.test(p) ? 'tex' : 'file');
+let selected = new Set(), anchor = null;   // selected files and folders; anchor: where a Shift+click range starts
 
 export async function loadFiles() {
   const r = await api('/api/files');
   if (!r.ok) return setStatus('cannot list files: ' + (r.error || r.status), 'err');
   Object.assign(project, { root: r.root, main: r.main, files: r.files || [], assets: r.assets || [], dirs: r.dirs || [] });
+  const known = new Set([...project.files, ...project.assets, ...project.dirs]);
+  selected = new Set([...selected].filter(p => known.has(p)));
   $('mainDoc').textContent = project.main;
   renderFiles();
 }
@@ -28,10 +33,10 @@ function tree() {
 export function renderFiles() {
   const q = $('filter').value.toLowerCase().trim(), box = $('files');
   const collapsed = new Set(store.get(pkey('collapsed'), []));
-  const rows = [];
+  const rows = [], sel = p => selected.size > 1 && selected.has(p) ? ' sel' : '';
   const fileRow = (f, depth) => {
-    const row = el('div', { className: 'f' + (f.asset ? ' asset' : '') + (f.path === state.current ? ' active' : '') + (app.isDirty?.(f.path) ? ' mod' : ''),
-                            title: f.path, dataset: { path: f.path }, onclick: () => f.asset ? preview(f.path) : app.openFile(f.path) },
+    const row = el('div', { className: 'f' + (f.asset ? ' asset' : '') + (f.path === state.current ? ' active' : '') + (app.isDirty?.(f.path) ? ' mod' : '') + sel(f.path),
+                            title: f.path, dataset: { path: f.path }, onclick: e => pick(e, f.path, () => f.asset ? preview(f.path) : app.openFile(f.path)) },
       fileIcon(f.path), el('span', { className: 'nm' }, baseName(f.path)),
       f.path === project.main ? el('span', { className: 'badge', title: 'Main document' }, 'main') : null,
       actions(f.path, false));
@@ -46,9 +51,9 @@ export function renderFiles() {
       const d = path ? `${path}/${name}` : name, child = n.dirs.get(name);
       if (q && !hasMatch(child, q)) continue;
       const open = q || !collapsed.has(d);
-      const head = el('div', { className: 'dir toggle' + (open ? ' open' : ''), title: d, dataset: { dir: d }, onclick: () => {
+      const head = el('div', { className: 'dir toggle' + (open ? ' open' : '') + sel(d), title: d, dataset: { dir: d }, onclick: e => pick(e, d, () => {
         const s = new Set(store.get(pkey('collapsed'), [])); s.has(d) ? s.delete(d) : s.add(d); store.set(pkey('collapsed'), [...s]); renderFiles();
-      } }, icon('chevron', 'chev'), icon('folder', 'fold'), el('span', { className: 'nm' }, name), actions(d, true));
+      }) }, icon('chevron', 'chev'), icon('folder', 'fold'), el('span', { className: 'nm' }, name), actions(d, true));
       head.style.paddingLeft = (6 + depth * 14) + 'px';
       rows.push(head);
       if (open) walk(child, d, depth + 1);
@@ -56,6 +61,8 @@ export function renderFiles() {
   };
   walk(tree(), '', 0);
   box.replaceChildren(...rows);
+  $('selBar').hidden = selected.size < 2;
+  $('selCount').textContent = `${selected.size} selected`;
 }
 const hasMatch = (n, q) => n.files.some(f => f.path.toLowerCase().includes(q)) || [...n.dirs.values()].some(c => hasMatch(c, q));
 $('filter').oninput = renderFiles;
@@ -83,6 +90,47 @@ async function remove(path) {
   app.dropDoc(path); await loadFiles(); app.filesChanged?.();
   setStatus(`moved ${path} to ${r.trash}`, 'ok');
 }
+
+// ---------- selecting several ----------
+// Ctrl/Cmd+click adds a row to the selection or takes it out; Shift+click selects the rows from the last one clicked
+// to this one. A plain click selects only that row and does what it always did (open, preview, fold or unfold).
+const shown = () => [...$('files').querySelectorAll('[data-path], [data-dir]')].map(r => r.dataset.path ?? r.dataset.dir);
+function pick(e, path, open) {
+  if (e.ctrlKey || e.metaKey) {
+    // The first Ctrl+click adds to the row clicked last (an image, a folder or the open file). If that was a file and
+    // another one has been opened since (from a tab, say), it adds to the open file, which the list shows instead.
+    const last = selected.size === 1 ? [...selected][0] : null;
+    if (selected.size < 2 && !(last && shown().includes(last) && (last === state.current || !project.files.includes(last))))
+      selected = new Set(state.current && shown().includes(state.current) ? [state.current] : []);
+    selected.has(path) ? selected.delete(path) : selected.add(path);
+    anchor = path;
+  } else if (e.shiftKey) {
+    selected = new Set(rangeBetween(shown(), anchor ?? state.current, path));
+  } else {
+    selected = new Set([path]); anchor = path;
+    renderFiles();
+    return open();
+  }
+  renderFiles();
+}
+const folderName = () => project.root.split(/[\\/]/).filter(Boolean).pop() || 'project';
+$('selDownload').onclick = () => {
+  const paths = topmost([...selected]);
+  el('a', { href: '/api/export?paths=' + encodeURIComponent(JSON.stringify(paths)), download: `${folderName()}-files.zip` }).click();
+};
+$('selDelete').onclick = () => confirmClick($('selDelete'), `Delete ${selected.size}?`, async () => {
+  const failed = [];
+  let moved = 0;
+  for (const path of topmost([...selected])) {   // a folder takes the files in it along
+    const r = await post('/api/fs/delete', { path });
+    if (r.ok) { moved++; app.dropDoc(path); } else failed.push(`${path}: ${r.error}`);
+  }
+  selected = new Set(); anchor = null;
+  await loadFiles(); app.filesChanged?.();
+  const done = `moved ${moved} item${moved === 1 ? '' : 's'} to build/.editor-trash`;
+  if (failed.length) setStatus(`${done}; not deleted: ${failed.join('; ')}`, 'err'); else setStatus(done, 'ok');
+});
+$('selClear').onclick = () => { selected = new Set(); anchor = null; renderFiles(); };
 
 // ---------- new / rename form ----------
 let form = null;   // { kind: 'file' | 'folder' | 'rename', from }
