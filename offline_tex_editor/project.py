@@ -274,10 +274,21 @@ def outline(root, main):
 
 
 LABEL = re.compile(r'\\label\s*\{([^}]+)\}')
-NEWCMD = re.compile(r'\\(?:re|provide)?newcommand\*?\s*\{?\s*\\([A-Za-z@]+)\s*\}?\s*(?:\[(\d)\])?'
-                    r'|\\DeclareMathOperator\*?\s*\{?\s*\\([A-Za-z@]+)'
-                    r'|\\def\s*\\([A-Za-z@]+)'
-                    r'|\\(?:re)?newenvironment\*?\s*\{([A-Za-z@*]+)\}')
+NEWCMD = re.compile(r'\\(?:(?:re|provide)?newcommand|DeclareRobustCommand)\*?\s*\{?\s*\\(?P<cmd>[A-Za-z@]+)\s*\}?'
+                    r'\s*(?:\[(?P<args>\d)\])?'
+                    r'|\\(?:New|Renew|Provide|Declare)DocumentCommand\s*\{?\s*\\(?P<doc>[A-Za-z@]+)\s*\}?\s*\{'
+                    r'|\\DeclareMathOperator\*?\s*\{?\s*\\(?P<op>[A-Za-z@]+)'
+                    r'|\\def\s*\\(?P<def>[A-Za-z@]+)'
+                    r'|\\(?:(?:re)?newenvironment\*?|(?:New|Renew|Provide|Declare)DocumentEnvironment|newtheorem\*?'
+                    r'|declaretheorem\s*(?:\[[^\]]*\])?)\s*\{(?P<env>[A-Za-z@*]+)\}')
+
+
+def mandatory_args(spec):
+    """How many mandatory arguments an xparse argument specification such as "s O{default} m m" has."""
+    while True:  # drop {...} groups (default values, processors), innermost first, so an "m" in them is not counted
+        spec, n = re.subn(r'\{[^{}]*\}', '', spec)
+        if not n:
+            return spec.count('m')
 
 
 def labels(root, files):
@@ -301,8 +312,8 @@ def labels(root, files):
 
 
 def commands(root, files):
-    """Commands and environments the project defines (\\newcommand, \\DeclareMathOperator, \\def,
-    \\newenvironment)."""
+    """Commands and environments the project defines (\\newcommand, \\DeclareRobustCommand, \\NewDocumentCommand,
+    \\DeclareMathOperator, \\def, \\newenvironment, \\NewDocumentEnvironment, \\newtheorem, \\declaretheorem)."""
     out = {}
     for rel in files:
         if not rel.endswith(('.tex', '.sty', '.cls')):
@@ -312,14 +323,15 @@ def commands(root, files):
         except OSError:
             continue
         for n, raw in enumerate(text.splitlines(), 1):
-            for m in NEWCMD.finditer(strip_comment(raw)):
-                if m.group(5):
-                    out.setdefault('env:' + m.group(5), {'name': m.group(5), 'env': True, 'args': 0, 'file': rel,
-                                                         'line': n})
+            line = strip_comment(raw)
+            for m in NEWCMD.finditer(line):
+                if m['env']:
+                    out.setdefault('env:' + m['env'], {'name': m['env'], 'env': True, 'args': 0, 'file': rel,
+                                                       'line': n})
                 else:
-                    name = m.group(1) or m.group(3) or m.group(4)
-                    out.setdefault(name, {'name': name, 'env': False, 'args': int(m.group(2) or 0), 'file': rel,
-                                          'line': n})
+                    name = m['cmd'] or m['doc'] or m['op'] or m['def']
+                    args = mandatory_args(braced(line, m.end())) if m['doc'] else int(m['args'] or 0)
+                    out.setdefault(name, {'name': name, 'env': False, 'args': args, 'file': rel, 'line': n})
     return list(out.values())
 
 

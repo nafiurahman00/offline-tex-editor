@@ -276,6 +276,20 @@ class Structure(unittest.TestCase):
         cmds = {c['name']: c['args'] for c in project.commands(self.root, files)}
         self.assertEqual(cmds, {'R': 0, 'norm': 1, 'argmax': 0, 'proofsketch': 0})
 
+    def test_commands_from_xparse_robust_and_theorems(self):
+        write(self.root, {'defs.tex': '\\NewDocumentCommand{\\pair}{m m}{(#1, #2)}\n'
+                                      '\\NewDocumentCommand\\abs{s O{\\big{m}} m}{|#3|}\n'
+                                      '\\ProvideDocumentCommand{\\later}{}{}\n'
+                                      '\\DeclareRobustCommand{\\robust}[2]{#1#2}\n'
+                                      '\\NewDocumentEnvironment{boxed}{m}{}{}\n'
+                                      '\\newtheorem{thm}{Theorem}\n\\newtheorem{conj}[thm]{Conjecture}\n'
+                                      '\\newtheorem*{remark*}{Remark}\n\\newtheoremstyle{note}{}{}{}{}{}{}{}{}\n'
+                                      '\\declaretheorem[style=definition]{defn}\n'})
+        found = {(c['name'], c['env']): c['args'] for c in project.commands(self.root, ['defs.tex'])}
+        self.assertEqual(found, {('pair', False): 2, ('abs', False): 1, ('later', False): 0, ('robust', False): 2,
+                                 ('boxed', True): 0, ('thm', True): 0, ('conj', True): 0, ('remark*', True): 0,
+                                 ('defn', True): 0})
+
     def test_search_and_replace_keep_encoding_and_line_endings(self):
         write(self.root, {'a.tex': b'alpha beta\r\nAlphabet\r\n', 'b.tex': 'caf\xe9 alpha\n'.encode('latin-1')})
         files = ['a.tex', 'b.tex']
