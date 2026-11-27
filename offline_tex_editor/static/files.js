@@ -1,18 +1,19 @@
 // The file list: tree, filter, new/rename/delete, upload (button or drag and drop), image and PDF previews.
 import { $, el, app, state, project, store, pkey, api, post, setStatus, dirOf, baseName, icon } from './util.js';
+import { currentFolder, followRename, stillListed } from './folders.js';
 
 const IMAGE = /\.(png|jpe?g|gif|svg|webp|bmp)$/i;
 const fileIcon = p => icon(IMAGE.test(p) ? 'image' : /\.bib$/i.test(p) ? 'bib' : /\.(tex|ltx|sty|cls)$/i.test(p) ? 'tex' : 'file');
-// The folder that Add files, New file and New folder work in: the folder clicked last, the folder of the file clicked
-// last, or '' (the project folder) after a click on an empty part of the list. Until then, the open file's folder.
+// The folder that Add files, New file and New folder work in (see folders.js); it follows renames and is forgotten when
+// what was clicked is gone.
 let clicked = null;   // { path, dir } of the last row clicked
-const currentDir = () => clicked ? (clicked.dir ? clicked.path : dirOf(clicked.path)) : state.current ? dirOf(state.current) : '';
+const currentDir = () => currentFolder(clicked, state.current);
 
 export async function loadFiles() {
   const r = await api('/api/files');
   if (!r.ok) return setStatus('cannot list files: ' + (r.error || r.status), 'err');
   Object.assign(project, { root: r.root, main: r.main, files: r.files || [], assets: r.assets || [], dirs: r.dirs || [] });
-  if (clicked?.dir && clicked.path && !project.dirs.includes(clicked.path)) clicked = null;   // deleted or renamed
+  clicked = stillListed(clicked, [...project.files, ...project.assets], project.dirs);
   $('mainDoc').textContent = project.main;
   renderFiles();
 }
@@ -118,6 +119,7 @@ $('fsInput').addEventListener('keydown', async e => {
     const r = await post('/api/fs/rename', { from: form.from, to: path });
     if (!r.ok) return ($('fsHint').textContent = r.error);
     app.renameDoc(form.from, r.path);
+    clicked = followRename(clicked, form.from, r.path);
     if (r.main !== project.main) { project.main = r.main; app.refreshSettings?.(); }
     closeForm(); await loadFiles(); app.filesChanged?.();
     setStatus(`renamed to ${r.path}`, 'ok');
