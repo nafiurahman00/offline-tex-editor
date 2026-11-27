@@ -1,7 +1,7 @@
 // Autocompletion: \ref labels, \cite keys, environments, file names and commands (built-in and the project's own).
 import { el, app, project, api } from './util.js';
 import { fromMain } from './paths.js';
-import { refArgument } from './refs.js';
+import { refArgument, argumentEdit } from './refs.js';
 
 // [name, number of {} arguments]
 const BUILTIN = [
@@ -129,7 +129,7 @@ export function complete(explicit = false) {
 
 function accept() {
   const cm = app.cm, it = active.list[active.sel], ctx = active.ctx, cur = cm.getCursor(), line = cm.getLine(cur.line);
-  const word = ctx.kind === 'cmd' ? /[a-zA-Z@*]/ : /[^\s,{}\]]/;
+  const word = ctx.kind === 'cmd' ? /[a-zA-Z@*]/ : /[^\s,{}]/;
   let to = cur.ch; while (to < line.length && word.test(line[to])) to++;
   const from = { line: cur.line, ch: ctx.from };
   close();
@@ -142,8 +142,8 @@ function accept() {
     cm.replaceRange(`${it.text}}\n${indent}  \n${indent}\\end{${it.text}}`, from, { line: cur.line, ch: end });
     cm.setCursor({ line: cur.line + 1, ch: indent.length + 2 });
   } else {
-    const close = ctx.close || '}', closing = line[to] === close || (close === '}' && line[to] === ',') ? '' : close;
-    cm.replaceRange(it.text + closing, from, { line: cur.line, ch: to });
+    const e = argumentEdit(line, ctx.from, cur.ch, it.text, ctx.close);
+    cm.replaceRange(e.insert, from, { line: cur.line, ch: e.to });
   }
   cm.focus();
 }
