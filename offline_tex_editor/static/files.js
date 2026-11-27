@@ -1,6 +1,6 @@
 // The file list: tree, filter, new/rename/delete, upload (button or drag and drop), image and PDF previews.
 import { $, el, app, state, project, store, pkey, api, post, setStatus, dirOf, baseName, icon } from './util.js';
-import { fromMain, figureFolder, pastedName } from './paths.js';
+import { figureFolder, pastedName, texSafeName, includeGraphics } from './paths.js';
 
 const IMAGE = /\.(png|jpe?g|gif|svg|webp|bmp)$/i;
 const fileIcon = p => icon(IMAGE.test(p) ? 'image' : /\.bib$/i.test(p) ? 'bib' : /\.(tex|ltx|sty|cls)$/i.test(p) ? 'tex' : 'file');
@@ -176,14 +176,23 @@ const texOpen = () => /\.tex$/i.test(state.current || '');
 async function insertImages(files, pos, pasted) {
   const dir = figureFolder(project.dirs || [], project.main), now = new Date();
   const ext = f => f.type === 'image/jpeg' ? 'jpg' : 'png';
-  const names = pasted ? files.map((f, i) => pastedName(now, ext(f), files.length > 1 ? i + 1 : 0)) : undefined;
+  const names = files.map((f, i) => pasted ? pastedName(now, ext(f), files.length > 1 ? i + 1 : 0) : texSafeName(f.name));
+  // The upload takes a while: the \includegraphics goes where the files were put, in that document, even after
+  // typing elsewhere or switching to another document in the meantime.
+  const path = state.current, doc = app.cm.getDoc(), mark = doc.setBookmark(pos);
   const added = await upload(files, dir, names);
-  if (!added.length) return;
-  // on lines of their own, with the path as LaTeX sees it, from the main document's folder
-  const text = added.map(p => `\\includegraphics[width=\\linewidth]{${fromMain(p, project.main)}}`).join('\n');
-  const line = app.cm.getLine(pos.line), before = line.slice(0, pos.ch).trim() ? '\n' : '', after = line.slice(pos.ch).trim() ? '\n' : '';
-  app.cm.replaceRange(before + text + after, pos);
-  app.cm.focus();
+  const at = mark.find();
+  mark.clear();
+  if (!added.length) return;   // nothing uploaded (refused, or replacing skipped): nothing to put in
+  const renamed = pasted ? [] : files.map((f, i) => [f.name, names[i]]).filter(([a, b]) => a !== b).map(([a, b]) => `${a} as ${b}`);
+  const why = renamed.length ? `; saved ${renamed.join(', ')}, since \\includegraphics cannot read # % " \\ { } or repeated spaces` : '';
+  if (app.docOf(path) !== doc || !at) return setStatus(`added ${added.join(', ')}, but ${path} was closed, so no \\includegraphics was put in${why}`, 'err');
+  // on lines of their own, with the paths as LaTeX sees them, from the main document's folder
+  const line = doc.getLine(at.line), before = line.slice(0, at.ch).trim() ? '\n' : '', after = line.slice(at.ch).trim() ? '\n' : '';
+  doc.replaceRange(before + added.map(p => includeGraphics(p, project.main)).join('\n') + after, at);
+  app.refreshDirty?.();
+  if (why || path !== state.current) setStatus(`added ${added.length} file${added.length > 1 ? 's' : ''} and put \\includegraphics in ${path}${why}`, 'ok');
+  if (path === state.current) app.cm.focus();
 }
 app.cm.on('paste', (cm, e) => {
   const d = e.clipboardData;

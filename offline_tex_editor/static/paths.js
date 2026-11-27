@@ -26,6 +26,15 @@ export function figureFolder(dirs, main) {
   return base;
 }
 
+// A file name that \includegraphics can read: LaTeX stops at #, %, ", \ and unbalanced braces in it, and reads several
+// spaces as one, so those become "-" and a single space.
+export function texSafeName(name) {
+  return name.replace(/[#%"\\{}]/g, '-').replace(/\s+/g, ' ').trim();
+}
+
+// The \includegraphics line for an image at `path` (relative to the project folder), as the main document sees it.
+export const includeGraphics = (path, main) => `\\includegraphics[width=\\linewidth]{${fromMain(path, main)}}`;
+
 // A file name for a pasted image, which has none of its own: pasted-20261127-104305.png, or with n,
 // pasted-20261127-104305-2.png.
 export function pastedName(date, ext, n) {
