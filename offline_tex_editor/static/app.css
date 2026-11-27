@@ -113,7 +113,8 @@ label.tog:has(input:focus-visible) { outline: 2px solid var(--accent); outline-o
 #files .f.active .ic { color: var(--accent); }
 #files .f.asset .nm { color: var(--muted); }
 #files .f, #files .dir { user-select: none; }   /* Shift+click selects rows, not text */
-#files .f.sel, #files .dir.sel { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+/* the ring in the panel's color keeps selected rows apart, without moving the rows */
+#files .f.sel, #files .dir.sel { background: color-mix(in srgb, var(--accent) 22%, transparent); box-shadow: inset 0 0 0 1.5px var(--panel); }
 #selBar { display: flex; flex-wrap: wrap; align-items: center; gap: 3px; margin: 0 6px 6px; padding: 3px 3px 3px 8px;
           border-radius: 6px; background: var(--sel); font-size: 12px; }
 #selBar[hidden] { display: none; }
