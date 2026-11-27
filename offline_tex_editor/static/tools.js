@@ -46,10 +46,19 @@ $('draftChk').onchange = async () => { if (await change({ draft: $('draftChk').c
 $('spellChk').onchange = () => app.setSpellcheck($('spellChk').checked);
 $('spellChk').checked = store.get('spellcheck', false);
 
-// The project as a .zip, named after its folder (same-origin links can name what they download)
-$('exportBtn').onclick = () => {
-  const name = project.root.split(/[\\/]/).filter(Boolean).pop() || 'project';
-  el('a', { href: '/api/export', download: name + '.zip' }).click();
+// The project's sources as a .zip, named after its folder. Open files are saved first, so the .zip has what is on
+// screen; if one cannot be saved, nothing is downloaded. The server tells about a missing or out-of-date .bbl.
+$('exportBtn').onclick = async () => {
+  const note = $('exportNote');
+  note.textContent = 'saving…';
+  if (!(await app.saveAll())) { note.textContent = 'Not downloaded: an open file could not be saved.'; return; }
+  const r = await fetch('/api/export');
+  if (!r.ok) { note.textContent = `Not downloaded: ${(await r.json().catch(() => ({}))).error || r.status}`; return; }
+  const url = URL.createObjectURL(await r.blob()), name = project.root.split(/[\\/]/).filter(Boolean).pop() || 'project';
+  el('a', { href: url, download: name + '.zip' }).click();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+  const said = r.headers.get('X-Export-Note');
+  note.textContent = said ? decodeURIComponent(said) : 'Downloaded the saved sources.';
 };
 
 $('wcBtn').onclick = async () => {
