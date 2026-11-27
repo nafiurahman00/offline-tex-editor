@@ -28,7 +28,7 @@ import webbrowser
 import zipfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse, urlsplit
+from urllib.parse import parse_qs, quote, urlparse, urlsplit
 
 from . import __version__, gitapi, latexlog, project, webdav
 
@@ -564,9 +564,9 @@ def word_count():
 # ---------- export ----------
 
 def export_zip(paths=None):
-    """The project as a .zip to send to arXiv or a journal: its files, without build/, .git/ or other hidden files
-    and folders (.latexmkrc is kept), and with the bibliography made in the last compile (build/<job>.bbl) next to the
-    main document, named after it, which is where arXiv looks for it.
+    """The project's sources as a .zip, as they are saved: its files, without build/, .git/ or other hidden files and
+    folders (.latexmkrc is kept), and with the bibliography made in the last compile (build/<job>.bbl) next to the
+    main document, named after it, which is where arXiv for one looks for it. A .bbl of the project's own is kept.
     With `paths` (files and folders, relative to ROOT), only those files and the files in those folders, for
     downloading the files selected in the file list."""
     picked = None if paths is None else [rel_of(safe(rel)) for rel in paths]
@@ -592,6 +592,23 @@ def export_zip(paths=None):
         if picked is None and bbl.is_file() and name not in names:
             z.write(bbl, name)
     return buf.getvalue()
+
+
+def export_note():
+    """What to tell about the .bbl in the .zip, or None: none was made yet, or it may be older than the sources."""
+    if (ROOT / Path(MAIN).with_suffix('.bbl')).is_file():
+        return None   # the project's own .bbl goes in as it is
+    files = list_files()
+    bibs = [ROOT / f for f in files if f.endswith('.bib')]
+    bbl, aux = ROOT / 'build' / f'{JOB}.bbl', ROOT / 'build' / f'{JOB}.aux'
+    if not bbl.is_file():
+        return ('No bibliography from a compile yet, so the .zip has no .bbl. If the document uses BibTeX or biber, '
+                'compile it, then download again.') if bibs else None
+    newest = max((p.stat().st_mtime for p in [ROOT / f for f in files if f.endswith(('.tex', '.bib'))]), default=0)
+    compiled = aux.stat().st_mtime if aux.is_file() else bbl.stat().st_mtime
+    if newest > compiled or any(b.stat().st_mtime > bbl.stat().st_mtime for b in bibs):
+        return 'Sources changed since the last compile, so the .bbl may be out of date. Recompile, then download again.'
+    return None
 
 
 # ---------- file operations ----------
@@ -805,7 +822,7 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *a):
         pass
 
-    def send(self, code, body, ctype='application/json', csp="frame-ancestors 'none'"):
+    def send(self, code, body, ctype='application/json', csp="frame-ancestors 'none'", headers=None):
         data = body if isinstance(body, bytes) else (json.dumps(body) if ctype == 'application/json' else body).encode()
         self.send_response(code)
         self.send_header('Content-Type', ctype)
@@ -815,6 +832,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('X-Frame-Options', 'DENY')  # no clickjacking the Push button from another site
         self.send_header('Content-Security-Policy', csp)
         self.send_header('Referrer-Policy', 'no-referrer')
+        for k, v in (headers or {}).items():
+            self.send_header(k, v)
         self.end_headers()
         self.wfile.write(data)
 
@@ -879,7 +898,9 @@ class Handler(BaseHTTPRequestHandler):
                 paths = json.loads(q['paths']) if 'paths' in q else None
                 if paths is not None and not (isinstance(paths, list) and all(isinstance(x, str) for x in paths)):
                     raise UserError('paths must be a list of file and folder names')
-                return self.send(200, export_zip(paths), 'application/zip')
+                note = export_note() if paths is None else None   # a selection has no .bbl
+                return self.send(200, export_zip(paths), 'application/zip',
+                                 headers={'X-Export-Note': quote(note)} if note else None)
             if u.path == '/api/raw':
                 p = asset(q['path'])
                 return self.send(200, p.read_bytes(), TYPES.get(p.suffix.lower(), 'application/octet-stream'),
