@@ -581,6 +581,13 @@ def export_zip(paths=None):
                 continue
             z.write(real, rel)
             names.add(rel)
+        if picked is not None:  # selected folders with no files to download are kept as empty folders
+            for d in sorted(project.list_dirs(ROOT), key=lambda d: -d.count('/')):  # deepest first
+                inside = any(d == r or d.startswith(r + '/') for r in picked)
+                hidden = any(part.startswith('.') for part in d.split('/'))
+                if inside and not hidden and not any(n.startswith(d + '/') for n in names):
+                    z.writestr(d + '/', '')
+                    names.add(d + '/')
         bbl, name = ROOT / 'build' / f'{JOB}.bbl', Path(MAIN).with_suffix('.bbl').as_posix()
         if picked is None and bbl.is_file() and name not in names:
             z.write(bbl, name)

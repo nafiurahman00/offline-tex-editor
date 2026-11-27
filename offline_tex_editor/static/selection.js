@@ -9,6 +9,14 @@ export function rangeBetween(order, a, b) {
   return order.slice(Math.min(i, j), Math.max(i, j) + 1);
 }
 
+// What deleting the selected paths does: { remove, keep }. keep: the main document and the folders it is in, which
+// cannot be deleted; remove: the rest, without paths inside a folder that is removed. The selected files in a kept
+// folder are removed one by one, so selecting paper/ and paper/notes.tex still deletes paper/notes.tex.
+export function forDeleting(paths, main) {
+  const keep = paths.filter(p => main === p || main.startsWith(p + '/'));
+  return { remove: topmost(paths.filter(p => !keep.includes(p))), keep };
+}
+
 // The selected paths without those inside a selected folder, which go with their folder (deleting the folder and then
 // a file in it would fail, and a .zip would hold the file twice).
 export function topmost(paths) {

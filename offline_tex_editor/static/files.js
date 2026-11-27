@@ -1,7 +1,7 @@
 // The file list: tree, filter, new/rename/delete, selecting several (download or delete them together), upload
 // (button or drag and drop), image and PDF previews.
 import { $, el, app, state, project, store, pkey, api, post, setStatus, dirOf, baseName, icon, confirmClick } from './util.js';
-import { rangeBetween, topmost } from './selection.js';
+import { rangeBetween, topmost, forDeleting } from './selection.js';
 
 const IMAGE = /\.(png|jpe?g|gif|svg|webp|bmp)$/i;
 const fileIcon = p => icon(IMAGE.test(p) ? 'image' : /\.bib$/i.test(p) ? 'bib' : /\.(tex|ltx|sty|cls)$/i.test(p) ? 'tex' : 'file');
@@ -93,7 +93,8 @@ async function remove(path) {
 
 // ---------- selecting several ----------
 // Ctrl/Cmd+click adds a row to the selection or takes it out; Shift+click selects the rows from the last one clicked
-// to this one. A plain click selects only that row and does what it always did (open, preview, fold or unfold).
+// to this one. A plain click selects only that row and does what it always did (open, preview, fold or unfold), but
+// folding or unfolding a folder keeps a selection of several, so that more rows can be added from inside it.
 const shown = () => [...$('files').querySelectorAll('[data-path], [data-dir]')].map(r => r.dataset.path ?? r.dataset.dir);
 function pick(e, path, open) {
   if (e.ctrlKey || e.metaKey) {
@@ -107,7 +108,7 @@ function pick(e, path, open) {
   } else if (e.shiftKey) {
     selected = new Set(rangeBetween(shown(), anchor ?? state.current, path));
   } else {
-    selected = new Set([path]); anchor = path;
+    if (!(selected.size > 1 && project.dirs.includes(path))) { selected = new Set([path]); anchor = path; }
     renderFiles();
     return open();
   }
@@ -119,9 +120,10 @@ $('selDownload').onclick = () => {
   el('a', { href: '/api/export?paths=' + encodeURIComponent(JSON.stringify(paths)), download: `${folderName()}-files.zip` }).click();
 };
 $('selDelete').onclick = () => confirmClick($('selDelete'), `Delete ${selected.size}?`, async () => {
-  const failed = [];
+  const { remove, keep } = forDeleting([...selected], project.main);
+  const failed = keep.map(p => `${p}: ${p === project.main ? 'the main document' : 'holds the main document'}`);
   let moved = 0;
-  for (const path of topmost([...selected])) {   // a folder takes the files in it along
+  for (const path of remove) {   // a folder takes the files in it along
     const r = await post('/api/fs/delete', { path });
     if (r.ok) { moved++; app.dropDoc(path); } else failed.push(`${path}: ${r.error}`);
   }

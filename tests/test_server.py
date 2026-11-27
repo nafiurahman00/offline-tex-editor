@@ -574,6 +574,10 @@ class FileOperations(ServerCase):
         self.assertEqual(code, 200, data)
         with zipfile.ZipFile(io.BytesIO(data)) as z:   # the folder with what is in it, and no .bbl
             self.assertEqual(sorted(z.namelist()), ['figures/a.png', 'figures/sub/b.png', 'refs.bib'])
+        write(self.root, {'empty/inner/.keep': ''})   # folders with nothing to download stay, as empty folders
+        code, data, _ = self.get('/api/export?paths=' + urllib.parse.quote('["empty", "figures/sub"]'))
+        with zipfile.ZipFile(io.BytesIO(data)) as z:
+            self.assertEqual(sorted(z.namelist()), ['empty/inner/', 'figures/sub/b.png'])
         self.assertEqual(self.get('/api/export?paths=' + urllib.parse.quote('["../outside"]'))[0], 403)
         self.assertEqual(self.get('/api/export?paths=' + urllib.parse.quote('{"a": 1}'))[0], 400)
 

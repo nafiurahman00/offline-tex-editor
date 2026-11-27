@@ -2,7 +2,7 @@
 // node --test tests/
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { rangeBetween, topmost } from '../offline_tex_editor/static/selection.js';
+import { rangeBetween, topmost, forDeleting } from '../offline_tex_editor/static/selection.js';
 
 const order = ['main.tex', 'refs.bib', 'figures', 'figures/a.png', 'figures/b.png', 'sections', 'sections/intro.tex'];
 
@@ -24,4 +24,12 @@ test('files in a selected folder go with the folder', () => {
   assert.deepEqual(topmost(['figures/a.png', 'figures/b.png']), ['figures/a.png', 'figures/b.png']);
   // a name that only starts like the folder is not inside it
   assert.deepEqual(topmost(['fig', 'figures/a.png']), ['fig', 'figures/a.png']);
+});
+
+test('deleting keeps the main document and its folders, but not what is selected in them', () => {
+  assert.deepEqual(forDeleting(['paper', 'paper/sec/s.tex', 'notes.tex'], 'paper/main.tex'),
+                   { remove: ['paper/sec/s.tex', 'notes.tex'], keep: ['paper'] });
+  assert.deepEqual(forDeleting(['a', 'a/b', 'a/b/main.tex', 'a/b/c', 'a/b/c/x.tex', 'a/y.tex'], 'a/b/main.tex'),
+                   { remove: ['a/b/c', 'a/y.tex'], keep: ['a', 'a/b', 'a/b/main.tex'] });
+  assert.deepEqual(forDeleting(['paperx', 'pap'], 'paper/main.tex'), { remove: ['paperx', 'pap'], keep: [] });
 });
