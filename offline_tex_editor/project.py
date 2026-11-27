@@ -283,12 +283,42 @@ NEWCMD = re.compile(r'\\(?:(?:re|provide)?newcommand|DeclareRobustCommand)\*?\s*
                     r'|declaretheorem\s*(?:\[[^\]]*\])?)\s*\{(?P<env>[A-Za-z@*]+)\}')
 
 
+def spec_tokens(spec):
+    """The tokens of an xparse argument specification: single characters, control sequences and {...} groups, without
+    spaces (which the specification ignores)."""
+    out, i = [], 0
+    while i < len(spec):
+        c = spec[i]
+        if c.isspace():
+            i += 1
+        elif c == '{':
+            group = braced(spec, i + 1)
+            out.append('{' + group + '}')
+            i += len(group) + 2
+        elif c == '\\':
+            cs = re.match(r'\\(?:[A-Za-z@]+|.?)', spec[i:]).group()
+            out.append(cs)
+            i += len(cs)
+        else:
+            out.append(c)
+            i += 1
+    return out
+
+
+# The tokens an argument type (or prefix) takes after its letter, which are not arguments themselves: t<token>,
+# r<open><close>, R<open><close>{default}, d.., D.., O{default}, G{default}, e{tokens}, E{tokens}{defaults},
+# u{tokens}, >{processor} and ={key}. Everything else (m, o, s, v, b, l, g, + and !) stands alone.
+SPEC_PARAMS = {'t': 1, 'r': 2, 'd': 2, 'R': 3, 'D': 3, 'O': 1, 'G': 1, 'e': 1, 'u': 1, 'E': 2, '>': 1, '=': 1}
+
+
 def mandatory_args(spec):
-    """How many mandatory arguments an xparse argument specification such as "s O{default} m m" has."""
-    while True:  # drop {...} groups (default values, processors), innermost first, so an "m" in them is not counted
-        spec, n = re.subn(r'\{[^{}]*\}', '', spec)
-        if not n:
-            return spec.count('m')
+    """How many mandatory (m) arguments an xparse argument specification such as "s O{default} m m" has. The token
+    after t, the delimiters of r and d and the like, and default values are skipped, so "t m m" has one."""
+    tokens, n, i = spec_tokens(spec), 0, 0
+    while i < len(tokens):
+        n += tokens[i] == 'm'
+        i += 1 + SPEC_PARAMS.get(tokens[i], 0)
+    return n
 
 
 def labels(root, files):
