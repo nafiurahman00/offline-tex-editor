@@ -6,6 +6,7 @@ Tests that need git, latexmk, synctex, xelatex, biber or texcount are skipped wh
 """
 import base64
 import http.client
+import io
 import json
 import re
 import shutil
@@ -15,6 +16,7 @@ import tempfile
 import threading
 import time
 import unittest
+import zipfile
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
@@ -543,6 +545,25 @@ class FileOperations(ServerCase):
         self.assertEqual(self.post('/api/fs/upload', {'path': 'figures/p.png', 'data': data, 'replace': True})[0], 200)
         self.assertEqual(self.post('/api/fs/upload', {'path': 'evil.html', 'data': data})[0], 400)
         self.assertEqual(self.post('/api/fs/upload', {'path': 'x.png', 'data': '!!notbase64'})[0], 400)
+
+    def test_export_zip(self):
+        write(self.root, {'figures/p.png': b'\x89PNG', '.latexmkrc': '$pdf_mode = 1;\n', '.env': 'KEY=1\n',
+                          '.vscode/settings.json': '{}', 'build/main.bbl': '\\begin{thebibliography}{1}\n',
+                          'build/main.pdf': b'%PDF'})
+        outside = Path(self.tmp.name) / 'secret.txt'
+        outside.write_text('not part of the project')
+        try:
+            (self.root / 'link.txt').symlink_to(outside)
+        except OSError:  # Windows without the right to make links
+            pass
+        code, data, r = self.get('/api/export')
+        self.assertEqual((code, r.getheader('Content-Type')), (200, 'application/zip'))
+        with zipfile.ZipFile(io.BytesIO(data)) as z:
+            # no build/, no hidden files but .latexmkrc, nothing from outside; the .bbl next to the main document
+            self.assertEqual(sorted(z.namelist()), ['.latexmkrc', 'figures/p.png', 'main.bbl', 'main.tex', 'refs.bib',
+                                                    'sections/introduction.tex'])
+            self.assertEqual(z.read('main.bbl'), b'\\begin{thebibliography}{1}\n')
+            self.assertEqual(z.read('figures/p.png'), b'\x89PNG')
 
 
 class SearchApi(ServerCase):

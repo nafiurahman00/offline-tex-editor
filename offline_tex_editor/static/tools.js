@@ -46,6 +46,12 @@ $('draftChk').onchange = async () => { if (await change({ draft: $('draftChk').c
 $('spellChk').onchange = () => app.setSpellcheck($('spellChk').checked);
 $('spellChk').checked = store.get('spellcheck', false);
 
+// The project as a .zip, named after its folder (same-origin links can name what they download)
+$('exportBtn').onclick = () => {
+  const name = project.root.split(/[\\/]/).filter(Boolean).pop() || 'project';
+  el('a', { href: '/api/export', download: name + '.zip' }).click();
+};
+
 $('wcBtn').onclick = async () => {
   $('wcNote').textContent = 'counting…';
   const r = await api('/api/wordcount');

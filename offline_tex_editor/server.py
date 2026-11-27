@@ -13,6 +13,7 @@ import base64
 import difflib
 import getpass
 import gzip
+import io
 import json
 import mimetypes
 import os
@@ -24,6 +25,7 @@ import subprocess
 import threading
 import time
 import webbrowser
+import zipfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse, urlsplit
@@ -559,6 +561,27 @@ def word_count():
     return out
 
 
+# ---------- export ----------
+
+def export_zip():
+    """The project as a .zip to send to arXiv or a journal: its files, without build/, .git/ or other hidden files
+    and folders (.latexmkrc is kept), and with the bibliography made in the last compile (build/<job>.bbl) next to the
+    main document, named after it, which is where arXiv looks for it."""
+    buf, names = io.BytesIO(), set()
+    with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as z:
+        for p, rel in project.walk(ROOT):
+            hidden = any(part.startswith('.') for part in rel.split('/')) and rel not in project.EDITABLE_NAMES
+            real = p.resolve()
+            if hidden or ROOT not in real.parents:  # a link to a file outside the project is left out
+                continue
+            z.write(real, rel)
+            names.add(rel)
+        bbl, name = ROOT / 'build' / f'{JOB}.bbl', Path(MAIN).with_suffix('.bbl').as_posix()
+        if bbl.is_file() and name not in names:
+            z.write(bbl, name)
+    return buf.getvalue()
+
+
 # ---------- file operations ----------
 
 def fs_new(b):
@@ -840,6 +863,8 @@ class Handler(BaseHTTPRequestHandler):
                 if not complete:
                     return self.send(409, {'error': 'the PDF is still being written'})
                 return self.send(200, (ROOT / 'build' / f'{JOB}.pdf').read_bytes(), 'application/pdf')
+            if u.path == '/api/export':
+                return self.send(200, export_zip(), 'application/zip')
             if u.path == '/api/raw':
                 p = asset(q['path'])
                 return self.send(200, p.read_bytes(), TYPES.get(p.suffix.lower(), 'application/octet-stream'),
