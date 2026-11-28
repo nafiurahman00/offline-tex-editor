@@ -92,6 +92,8 @@ TeX installation, so reports are welcome.
 - Search and replace in all files, with the same options (Ctrl/Cmd+Shift+F). With regular expressions, `$1`
   in the replacement inserts the first group (`$&` the whole match); backslashes are kept as typed, so
   `\textbf{$1}` works
+- Add files, New file and New folder use the last clicked folder (or the clicked file's folder);
+  before any click, they use the open document's folder
 - Document outline that follows `\input`, `\include`, `\subfile` and `\import`, and highlights the current section
 - Word count (with `texcount`, which comes with TeX Live)
 
