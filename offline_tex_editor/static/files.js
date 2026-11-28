@@ -1,13 +1,13 @@
 // The file list: tree, filter, new/rename/delete, upload (button or drag and drop), image and PDF previews.
-import { $, el, app, state, project, store, pkey, api, post, setStatus, dirOf, baseName, icon } from './util.js';
 import { currentFolder, followRename, stillListed } from './folders.js';
+import { $, el, app, state, project, store, pkey, api, post, setStatus, dirOf, baseName, icon } from './util.js';
 
 const IMAGE = /\.(png|jpe?g|gif|svg|webp|bmp)$/i;
 const fileIcon = p => icon(IMAGE.test(p) ? 'image' : /\.bib$/i.test(p) ? 'bib' : /\.(tex|ltx|sty|cls)$/i.test(p) ? 'tex' : 'file');
 // The folder that Add files, New file and New folder work in (see folders.js); it follows renames and is forgotten when
 // what was clicked is gone.
 let clicked = null;   // { path, dir } of the last row clicked
-const currentDir = () => currentFolder(clicked, state.current);
+const currentDir = () => currentFolder(clicked, state.current, project.dirs || []);
 
 export async function loadFiles() {
   const r = await api('/api/files');

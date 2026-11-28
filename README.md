@@ -87,11 +87,13 @@ TeX installation, so reports are welcome.
 
 **The project**
 - File tree with images and PDFs; create, rename, move and delete files and folders (deleted files go to
-  `build/.editor-trash/`, so mistakes can be undone); add files with a button (into the folder you clicked last)
-  or by dropping them on a folder; preview images and PDF figures
+  `build/.editor-trash/`, so mistakes can be undone); add files with a button or by dropping them on a folder;
+  preview images and PDF figures
 - Search and replace in all files, with the same options (Ctrl/Cmd+Shift+F). With regular expressions, `$1`
   in the replacement inserts the first group (`$&` the whole match); backslashes are kept as typed, so
   `\textbf{$1}` works
+- Add files, New file and New folder use the last clicked folder (or the clicked file's folder);
+  before any click, they use the open document's folder
 - Document outline that follows `\input`, `\include`, `\subfile` and `\import`, and highlights the current section
 - Word count (with `texcount`, which comes with TeX Live)
 
