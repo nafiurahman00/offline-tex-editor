@@ -96,6 +96,9 @@ TeX installation, so reports are welcome.
   before any click, they use the open document's folder
 - Document outline that follows `\input`, `\include`, `\subfile` and `\import`, and highlights the current section
 - Word count (with `texcount`, which comes with TeX Live)
+- Download the project's sources as a .zip (in ⚙): open files are saved first, and the .zip has the source files
+  and figures, without `build/` and hidden files, plus the bibliography from the last compile (the `.bbl`, which arXiv
+  for one needs) next to the main document. It is a copy of the sources, not a check against a venue's rules
 
 **Compiling**
 - Recompiles on save (can be switched off) or with Ctrl/Cmd+Enter; a Stop button and a time limit for runaway

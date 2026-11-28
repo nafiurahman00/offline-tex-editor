@@ -13,6 +13,7 @@ import base64
 import difflib
 import getpass
 import gzip
+import io
 import json
 import mimetypes
 import os
@@ -24,9 +25,10 @@ import subprocess
 import threading
 import time
 import webbrowser
+import zipfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse, urlsplit
+from urllib.parse import parse_qs, quote, urlparse, urlsplit
 
 from . import __version__, gitapi, latexlog, project, webdav
 
@@ -559,6 +561,55 @@ def word_count():
     return out
 
 
+# ---------- export ----------
+
+def export_file(path):
+    """A resolved, regular file inside the project, or None (including broken or cyclic links)."""
+    try:
+        real = path.resolve()
+        return real if ROOT in real.parents and real.is_file() else None
+    except (OSError, RuntimeError):
+        return None
+
+
+def export_zip():
+    """The project's sources as a .zip, as they are saved: its files, without build/, .git/ or other hidden files and
+    folders (.latexmkrc is kept), and with the bibliography made in the last compile (build/<job>.bbl) next to the
+    main document, named after it, which is where arXiv for one looks for it. A .bbl of the project's own is kept."""
+    buf, names = io.BytesIO(), set()
+    with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as z:
+        for p, rel in project.walk(ROOT):
+            hidden = any(part.startswith('.') for part in rel.split('/')) and rel not in project.EDITABLE_NAMES
+            real = export_file(p)
+            if hidden or real is None:
+                continue
+            z.write(real, rel)
+            names.add(rel)
+        bbl, name = export_file(ROOT / 'build' / f'{JOB}.bbl'), Path(MAIN).with_suffix('.bbl').as_posix()
+        if bbl is not None and name not in names:
+            z.write(bbl, name)
+    return buf.getvalue()
+
+
+def export_note():
+    """What to tell about the .bbl in the .zip, or None: none was made yet, or it may be older than the sources."""
+    if export_file(ROOT / Path(MAIN).with_suffix('.bbl')) is not None:
+        return None   # the project's own .bbl goes in as it is
+    files = list_files()
+    sources = [p for f in files if f.endswith(('.tex', '.bib')) for p in [export_file(ROOT / f)] if p is not None]
+    bibs = [p for f in files if f.endswith('.bib') for p in [export_file(ROOT / f)] if p is not None]
+    bbl, aux = export_file(ROOT / 'build' / f'{JOB}.bbl'), export_file(ROOT / 'build' / f'{JOB}.aux')
+    if bbl is None:
+        return ('No bibliography from a compile is available inside the project, so the .zip has no .bbl. '
+                'If the document uses BibTeX or biber, '
+                'compile it, then download again.') if bibs else None
+    newest = max((p.stat().st_mtime for p in sources), default=0)
+    compiled = aux.stat().st_mtime if aux is not None else bbl.stat().st_mtime
+    if newest > compiled or any(b.stat().st_mtime > bbl.stat().st_mtime for b in bibs):
+        return 'Sources changed since the last compile, so the .bbl may be out of date. Recompile, then download again.'
+    return None
+
+
 # ---------- file operations ----------
 
 def fs_new(b):
@@ -770,7 +821,7 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *a):
         pass
 
-    def send(self, code, body, ctype='application/json', csp="frame-ancestors 'none'"):
+    def send(self, code, body, ctype='application/json', csp="frame-ancestors 'none'", headers=None):
         data = body if isinstance(body, bytes) else (json.dumps(body) if ctype == 'application/json' else body).encode()
         self.send_response(code)
         self.send_header('Content-Type', ctype)
@@ -780,6 +831,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('X-Frame-Options', 'DENY')  # no clickjacking the Push button from another site
         self.send_header('Content-Security-Policy', csp)
         self.send_header('Referrer-Policy', 'no-referrer')
+        for k, v in (headers or {}).items():
+            self.send_header(k, v)
         self.end_headers()
         self.wfile.write(data)
 
@@ -840,6 +893,10 @@ class Handler(BaseHTTPRequestHandler):
                 if not complete:
                     return self.send(409, {'error': 'the PDF is still being written'})
                 return self.send(200, (ROOT / 'build' / f'{JOB}.pdf').read_bytes(), 'application/pdf')
+            if u.path == '/api/export':
+                note = export_note()
+                return self.send(200, export_zip(), 'application/zip',
+                                 headers={'X-Export-Note': quote(note)} if note else None)
             if u.path == '/api/raw':
                 p = asset(q['path'])
                 return self.send(200, p.read_bytes(), TYPES.get(p.suffix.lower(), 'application/octet-stream'),
