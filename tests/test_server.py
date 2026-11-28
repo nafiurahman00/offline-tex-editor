@@ -280,6 +280,33 @@ class Structure(unittest.TestCase):
         cmds = {c['name']: c['args'] for c in project.commands(self.root, files)}
         self.assertEqual(cmds, {'R': 0, 'norm': 1, 'argmax': 0, 'proofsketch': 0})
 
+    def test_commands_from_xparse_robust_and_theorems(self):
+        write(self.root, {'defs.tex': '\\NewDocumentCommand{\\pair}{m m}{(#1, #2)}\n'
+                                      '\\NewDocumentCommand\\abs{s O{\\big{m}} m}{|#3|}\n'
+                                      '\\ProvideDocumentCommand{\\later}{}{}\n'
+                                      '\\DeclareRobustCommand{\\robust}[2]{#1#2}\n'
+                                      '\\NewDocumentEnvironment{boxed}{m}{}{}\n'
+                                      '\\newtheorem{thm}{Theorem}\n\\newtheorem{conj}[thm]{Conjecture}\n'
+                                      '\\newtheorem*{remark*}{Remark}\n\\newtheoremstyle{note}{}{}{}{}{}{}{}{}\n'
+                                      '\\declaretheorem[style=definition]{defn}\n'})
+        found = {(c['name'], c['env']): c['args'] for c in project.commands(self.root, ['defs.tex'])}
+        self.assertEqual(found, {('pair', False): 2, ('abs', False): 1, ('later', False): 0, ('robust', False): 2,
+                                 ('boxed', True): 0, ('thm', True): 0, ('conj', True): 0, ('remark*', True): 0,
+                                 ('defn', True): 0})
+
+    def test_mandatory_args_skip_what_other_argument_types_take(self):
+        # the m after t is the token t looks for, not an argument
+        self.assertEqual(project.mandatory_args('t m m'), 1)
+        cases = {'m': 1, '+m': 1, 's o m m': 2, '!o m': 1, 't+ m': 1, 't\\foo m': 1, 'tm': 0,
+                 'r() m': 1, 'rmm m': 1, 'R(){m} m': 1, 'd<> m': 1, 'dmm m': 1, 'D<>{m} m': 1,
+                 'O{m} m': 1, 'O{\\big{m}} m': 1, 'e{_^} m': 1, 'E{_^}{{m}{m}} m': 1,
+                 '>{\\SplitList{m}} m': 1, 'v m': 1, '': 0}
+        for spec, n in cases.items():
+            with self.subTest(spec=spec):
+                self.assertEqual(project.mandatory_args(spec), n)
+        write(self.root, {'defs.tex': '\\NewDocumentCommand{\\example}{t m m}{#2}\n'})
+        self.assertEqual([c['args'] for c in project.commands(self.root, ['defs.tex'])], [1])
+
     def test_search_and_replace_keep_encoding_and_line_endings(self):
         write(self.root, {'a.tex': b'alpha beta\r\nAlphabet\r\n', 'b.tex': 'caf\xe9 alpha\n'.encode('latin-1')})
         files = ['a.tex', 'b.tex']
