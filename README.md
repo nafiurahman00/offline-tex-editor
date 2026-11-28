@@ -213,11 +213,34 @@ TeX installation, so reports are welcome.
 | `--host ADDR` | `127.0.0.1` | bind address; the default is reachable only from your machine |
 | `--open` | off | open the editor in your browser |
 | `--no-initial-compile` | off | skip the compile at start-up |
+| `--grammar` | off | enable the optional `offline-tex-grammar` companion |
 | `--webdav URL` | | get the project from this WebDAV folder first (or send it there), and stay connected to it |
 | `--webdav-user NAME` | | user name for `--webdav`; the password is asked for, unless it is in `~/.netrc` |
 | `--version` | | print the version |
 
 The PDF and auxiliary files go to `build/` in the project folder.
+
+### Optional grammar checker
+
+The private `offline-tex-grammar` companion adds a grammar sidebar, source highlights, project checks, and
+amber **A with a checkmark** icons beside files with suggestions. Access to that repository is required;
+it is installed separately and is not bundled with the editor.
+
+With its checkout next to this repository, start the editor with:
+
+```bash
+./start.sh --grammar --root path/to/your/project --open
+```
+
+Open **Grammar** using the **A with a checkmark** icon in the left sidebar. **Check now** reviews the current
+buffer; **Check project** reviews the project's source files. Click a file marker to open its suggestions.
+An installed companion in the same Python environment is also supported. Leave out `--grammar` to launch
+the editor on its own.
+
+The starter engine has 14 rules. For broader offline checks, install Java and run
+`python3 -m offline_tex_grammar.setup` from the grammar checkout once. The panel reports the engine in use.
+See [Integrating Offline TeX Grammar](docs/grammar-integration.md) for installation in a shared environment,
+Windows instructions, updating, verification, and troubleshooting.
 
 ## Main document and engine
 

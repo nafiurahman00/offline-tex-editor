@@ -25,7 +25,9 @@ $('themeBtn').onclick = () => {
 
 // ---------- side panels ----------
 export function showTab(t) {
-  for (const b of document.querySelectorAll('#sideTabs button')) {
+  const buttons = [...document.querySelectorAll('#sideTabs button')];
+  if (!buttons.some(b => b.dataset.tab === t)) t = 'files';
+  for (const b of buttons) {
     const on = b.dataset.tab === t;
     b.classList.toggle('on', on); b.setAttribute('aria-selected', on); $(b.dataset.tab + 'Pane').hidden = !on;
   }

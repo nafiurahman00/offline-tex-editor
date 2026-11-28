@@ -985,6 +985,8 @@ def main(argv=None):
     ap.add_argument('--port', type=int, help=f'port (default: the first free one from {DEFAULT_PORT})')
     ap.add_argument('--open', action='store_true', help='open the editor in the default browser')
     ap.add_argument('--no-initial-compile', action='store_true')
+    ap.add_argument('--grammar', action='store_true',
+                    help='enable the local grammar checker (installed package or neighboring offline-tex-grammar checkout)')
     ap.add_argument('--webdav', metavar='URL',
                     help='first get the project from this WebDAV folder (or send it there), and keep the two connected; '
                          '--root is created if needed')
@@ -992,6 +994,15 @@ def main(argv=None):
                     help='user name for --webdav; the password is asked for, unless it is in ~/.netrc')
     ap.add_argument('--version', action='version', version=f'%(prog)s {__version__}')
     a = ap.parse_args(argv)
+    if a.grammar:
+        from .grammar import integration
+        with integration():
+            return run_editor(a)
+    return run_editor(a)
+
+
+def run_editor(a):
+    """Run the configured editor, optionally inside an extension's lifetime."""
     if a.webdav:
         try:
             print(webdav.clone(a.root.resolve(), a.webdav, a.webdav_user, getpass.getpass), flush=True)
