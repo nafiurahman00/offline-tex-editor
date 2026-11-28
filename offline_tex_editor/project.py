@@ -274,10 +274,51 @@ def outline(root, main):
 
 
 LABEL = re.compile(r'\\label\s*\{([^}]+)\}')
-NEWCMD = re.compile(r'\\(?:re|provide)?newcommand\*?\s*\{?\s*\\([A-Za-z@]+)\s*\}?\s*(?:\[(\d)\])?'
-                    r'|\\DeclareMathOperator\*?\s*\{?\s*\\([A-Za-z@]+)'
-                    r'|\\def\s*\\([A-Za-z@]+)'
-                    r'|\\(?:re)?newenvironment\*?\s*\{([A-Za-z@*]+)\}')
+NEWCMD = re.compile(r'\\(?:(?:re|provide)?newcommand|DeclareRobustCommand)\*?\s*\{?\s*\\(?P<cmd>[A-Za-z@]+)\s*\}?'
+                    r'\s*(?:\[(?P<args>\d)\])?'
+                    r'|\\(?:New|Renew|Provide|Declare)DocumentCommand\s*\{?\s*\\(?P<doc>[A-Za-z@]+)\s*\}?\s*\{'
+                    r'|\\DeclareMathOperator\*?\s*\{?\s*\\(?P<op>[A-Za-z@]+)'
+                    r'|\\def\s*\\(?P<def>[A-Za-z@]+)'
+                    r'|\\(?:(?:re)?newenvironment\*?|(?:New|Renew|Provide|Declare)DocumentEnvironment|newtheorem\*?'
+                    r'|declaretheorem\s*(?:\[[^\]]*\])?)\s*\{(?P<env>[A-Za-z@*]+)\}')
+
+
+def spec_tokens(spec):
+    """The tokens of an xparse argument specification: single characters, control sequences and {...} groups, without
+    spaces (which the specification ignores)."""
+    out, i = [], 0
+    while i < len(spec):
+        c = spec[i]
+        if c.isspace():
+            i += 1
+        elif c == '{':
+            group = braced(spec, i + 1)
+            out.append('{' + group + '}')
+            i += len(group) + 2
+        elif c == '\\':
+            cs = re.match(r'\\(?:[A-Za-z@]+|.?)', spec[i:]).group()
+            out.append(cs)
+            i += len(cs)
+        else:
+            out.append(c)
+            i += 1
+    return out
+
+
+# The tokens an argument type (or prefix) takes after its letter, which are not arguments themselves: t<token>,
+# r<open><close>, R<open><close>{default}, d.., D.., O{default}, G{default}, e{tokens}, E{tokens}{defaults},
+# u{tokens}, >{processor} and ={key}. Everything else (m, o, s, v, b, l, g, + and !) stands alone.
+SPEC_PARAMS = {'t': 1, 'r': 2, 'd': 2, 'R': 3, 'D': 3, 'O': 1, 'G': 1, 'e': 1, 'u': 1, 'E': 2, '>': 1, '=': 1}
+
+
+def mandatory_args(spec):
+    """How many mandatory (m) arguments an xparse argument specification such as "s O{default} m m" has. The token
+    after t, the delimiters of r and d and the like, and default values are skipped, so "t m m" has one."""
+    tokens, n, i = spec_tokens(spec), 0, 0
+    while i < len(tokens):
+        n += tokens[i] == 'm'
+        i += 1 + SPEC_PARAMS.get(tokens[i], 0)
+    return n
 
 
 def labels(root, files):
@@ -301,8 +342,8 @@ def labels(root, files):
 
 
 def commands(root, files):
-    """Commands and environments the project defines (\\newcommand, \\DeclareMathOperator, \\def,
-    \\newenvironment)."""
+    """Commands and environments the project defines (\\newcommand, \\DeclareRobustCommand, \\NewDocumentCommand,
+    \\DeclareMathOperator, \\def, \\newenvironment, \\NewDocumentEnvironment, \\newtheorem, \\declaretheorem)."""
     out = {}
     for rel in files:
         if not rel.endswith(('.tex', '.sty', '.cls')):
@@ -312,14 +353,15 @@ def commands(root, files):
         except OSError:
             continue
         for n, raw in enumerate(text.splitlines(), 1):
-            for m in NEWCMD.finditer(strip_comment(raw)):
-                if m.group(5):
-                    out.setdefault('env:' + m.group(5), {'name': m.group(5), 'env': True, 'args': 0, 'file': rel,
-                                                         'line': n})
+            line = strip_comment(raw)
+            for m in NEWCMD.finditer(line):
+                if m['env']:
+                    out.setdefault('env:' + m['env'], {'name': m['env'], 'env': True, 'args': 0, 'file': rel,
+                                                       'line': n})
                 else:
-                    name = m.group(1) or m.group(3) or m.group(4)
-                    out.setdefault(name, {'name': name, 'env': False, 'args': int(m.group(2) or 0), 'file': rel,
-                                          'line': n})
+                    name = m['cmd'] or m['doc'] or m['op'] or m['def']
+                    args = mandatory_args(braced(line, m.end())) if m['doc'] else int(m['args'] or 0)
+                    out.setdefault(name, {'name': name, 'env': False, 'args': args, 'file': rel, 'line': n})
     return list(out.values())
 
 
